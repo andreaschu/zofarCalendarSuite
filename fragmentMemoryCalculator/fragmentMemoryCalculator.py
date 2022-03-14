@@ -253,7 +253,7 @@ class ZofarQuestionCollection:
         print(f' would need: {math.ceil(len(compressed) / self.chars_per_db_variable)} zofar variables.')
 
 
-y = ZofarQuestionCollection(numer_of_episodes=10)
+y = ZofarQuestionCollection(numer_of_episodes=20)
 
 y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=10, list_of_variable_names=['var01']))
 y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=5, list_of_variable_names=['var02']))
@@ -277,12 +277,7 @@ y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var15']))
 y.print_statistics()
 
 print('###')
-y.return_random_ao_json_str()
 
-for i in range(100):
-    t1 = return_lorem_text(2000)
-    print(t1)
-    print(len(t1))
 
 s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
 b = bytes.fromhex(s)
