@@ -1,10 +1,14 @@
-# pip install python-snappy
 from abc import ABC
 
-import snappy
+import datetime
 import random
 import string
 from collections import defaultdict
+
+# pip install python-snappy
+import snappy
+
+# pip install python-lorem
 import lorem
 from dataclasses import dataclass
 import abc
@@ -99,6 +103,7 @@ class ZofarQuestionSingleChoice(ZofarQuestion, ABC):
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
         return output_str
+
 
 @dataclass
 class ZofarQuestionSingleChoiceMatrix(ZofarQuestion, ABC):
@@ -219,11 +224,31 @@ class ZofarQuestionOpen(ZofarQuestion, ABC):
         return output_str
 
 
+class Timestamp:
+    def __init__(self, min_date: datetime.date, max_date: datetime.date):
+        self.min_date = min_date
+        self.max_date = max_date
+
+    def return_random_timestamp_inbetween(self) -> str:
+        tmp_timedelta = self.max_date - self.min_date
+        random_diff = tmp_timedelta * random.random()
+        output = self.min_date + random_diff
+        return output.strftime("%Y-%m-%dT%H-%M-%SZ")
+
+
+a = Timestamp(min_date=datetime.date(year=2018, month=2, day=23),
+              max_date=datetime.date(year=2028, month=12, day=31))
+a.return_random_timestamp_inbetween()
+
+
 class ZofarQuestionCollection:
     def __init__(self, numer_of_episodes: int = 1, chars_per_db_variable: int = 1500):
         self.list_of_zofar_questions = []
         self.number_of_episodes = numer_of_episodes
         self.chars_per_db_variable = chars_per_db_variable
+        self.min_date = datetime.date(year=2018, month=2, day=23)
+        self.max_date = datetime.date(year=2028, month=12, day=31)
+        self.timestamp_object = Timestamp(min_date=self.min_date, max_date=self.max_date)
 
     def add_question_object(self, question_object: ZofarQuestion):
         self.list_of_zofar_questions.append(question_object)
@@ -231,7 +256,13 @@ class ZofarQuestionCollection:
     def return_random_ao_json_str(self):
         output_list_of_jsons = []
         for i in range(self.number_of_episodes):
-            list_of_random_json = []
+            header = f'"id": {i}, '
+            header += f'"startDate": "{self.timestamp_object.return_random_timestamp_inbetween()}", '
+            header += f'"endDate": "{self.timestamp_object.return_random_timestamp_inbetween()}", '
+            header += f'"typeColor": "black", '
+            header += f'"type": "Slot2", '
+            header += f'"state": "new", '
+            list_of_random_json = [header]
             for question in self.list_of_zofar_questions:
                 list_of_random_json.append(question.return_random_ao_json_str())
             output_list_of_jsons.append(', '.join(list_of_random_json))
@@ -277,7 +308,6 @@ y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var15']))
 y.print_statistics()
 
 print('###')
-
 
 s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
 b = bytes.fromhex(s)
