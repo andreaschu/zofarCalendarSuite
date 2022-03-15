@@ -98,7 +98,7 @@ class ZofarQuestionSingleChoice(ZofarQuestion, ABC):
         self.set_up()
         ao = random.choice(self.list_of_answer_options)
         varname = self.list_of_variable_names[0]
-        return f'"{varname}": "{ao}"'
+        return f'"{varname}":"{ao}"'
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
@@ -141,7 +141,7 @@ class ZofarQuestionSingleChoiceMatrix(ZofarQuestion, ABC):
         list_of_json_strings = []
         for question_object in self.list_of_sc_question_objects:
             list_of_json_strings.append(question_object.return_random_ao_json_str())
-        return ', '.join(list_of_json_strings)
+        return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
@@ -157,8 +157,8 @@ class ZofarQuestionMultipleChoice(ZofarQuestion, ABC):
         list_of_json_strings = []
         for varname in self.list_of_variable_names:
             value = random.choice(self.list_of_answer_options)
-            list_of_json_strings.append(f'"{varname}": "{value}"')
-        return ', '.join(list_of_json_strings)
+            list_of_json_strings.append(f'"{varname}":"{value}"')
+        return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.list_of_answer_options=}'
@@ -202,7 +202,7 @@ class ZofarQuestionMultipleChoiceMatrix(ZofarQuestion, ABC):
         list_of_json_strings = []
         for question_object in self.list_of_mc_question_objects:
             list_of_json_strings.append(question_object.return_random_ao_json_str())
-        return ', '.join(list_of_json_strings)
+        return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
@@ -217,7 +217,7 @@ class ZofarQuestionOpen(ZofarQuestion, ABC):
     def return_random_ao_json_str(self):
         varname = self.list_of_variable_names[0]
 
-        return f'"{varname}": "{return_random_string(self.length_of_text)}"'
+        return f'"{varname}":"{return_random_string(self.length_of_text)}"'
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.length_of_text=}'
@@ -256,17 +256,17 @@ class ZofarQuestionCollection:
     def return_random_ao_json_str(self):
         output_list_of_jsons = []
         for i in range(self.number_of_episodes):
-            header = f'"id": {i}, '
-            header += f'"startDate": "{self.timestamp_object.return_random_timestamp_inbetween()}", '
-            header += f'"endDate": "{self.timestamp_object.return_random_timestamp_inbetween()}", '
-            header += f'"typeColor": "black", '
-            header += f'"type": "Slot2", '
-            header += f'"state": "new", '
+            header = f'"id":{i},'
+            header += f'"startDate":"{self.timestamp_object.return_random_timestamp_inbetween()}", '
+            header += f'"endDate":"{self.timestamp_object.return_random_timestamp_inbetween()}", '
+            header += f'"typeColor":"black",'
+            header += f'"type":"Slot2",'
+            header += f'"state":"new",'
             list_of_random_json = [header]
             for question in self.list_of_zofar_questions:
                 list_of_random_json.append(question.return_random_ao_json_str())
-            output_list_of_jsons.append(', '.join(list_of_random_json))
-        return '{[' + '], ['.join(output_list_of_jsons) + ']}'
+            output_list_of_jsons.append(','.join(list_of_random_json))
+        return '{[' + '],['.join(output_list_of_jsons) + ']}'
 
     def print_statistics(self):
         print(f'{self.number_of_episodes=}')
