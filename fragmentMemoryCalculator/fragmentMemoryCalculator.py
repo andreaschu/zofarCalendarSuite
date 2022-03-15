@@ -13,6 +13,8 @@ import lorem
 from dataclasses import dataclass
 import abc
 import math
+import json
+import pprint
 
 
 def hexdecode_and_decompress(input_str: str) -> str:
@@ -205,7 +207,7 @@ class ZofarQuestionMultipleChoiceMatrix(ZofarQuestion, ABC):
         return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
-        output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
+        output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}, {len(self.list_of_indexed_variable_names)=}'
         return output_str
 
 
@@ -213,14 +215,18 @@ class ZofarQuestionMultipleChoiceMatrix(ZofarQuestion, ABC):
 class ZofarQuestionOpen(ZofarQuestion, ABC):
     question_type: str = 'questionOpen'
     length_of_text: int = 2000
+    random_characters: bool = True
 
     def return_random_ao_json_str(self):
         varname = self.list_of_variable_names[0]
 
-        return f'"{varname}":"{return_random_string(self.length_of_text)}"'
+        if self.random_characters:
+            return f'"{varname}":"{return_random_string(self.length_of_text)}"'
+        else:
+            return f'"{varname}":"{return_lorem_text(self.length_of_text)}"'
 
     def return_details(self) -> str:
-        output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.length_of_text=}'
+        output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.length_of_text=}, {self.random_characters=}'
         return output_str
 
 
@@ -250,32 +256,50 @@ class ZofarQuestionCollection:
         self.max_date = datetime.date(year=2028, month=12, day=31)
         self.timestamp_object = Timestamp(min_date=self.min_date, max_date=self.max_date)
 
-    def add_question_object(self, question_object: ZofarQuestion):
+    def add_question_object(self, question_object: ZofarQuestion) -> int:
         self.list_of_zofar_questions.append(question_object)
+        return len(self.list_of_zofar_questions)
 
     def return_random_ao_json_str(self):
         output_list_of_jsons = []
         for i in range(self.number_of_episodes):
-            header = f'"id":{i},'
-            header += f'"startDate":"{self.timestamp_object.return_random_timestamp_inbetween()}", '
-            header += f'"endDate":"{self.timestamp_object.return_random_timestamp_inbetween()}", '
+            header = f'"id": {i}, '
+            header += f'"startDate":"{self.timestamp_object.return_random_timestamp_inbetween()}",'
+            header += f'"endDate":"{self.timestamp_object.return_random_timestamp_inbetween()}",'
             header += f'"typeColor":"black",'
             header += f'"type":"Slot2",'
-            header += f'"state":"new",'
+            header += f'"state":"new"'
             list_of_random_json = [header]
             for question in self.list_of_zofar_questions:
                 list_of_random_json.append(question.return_random_ao_json_str())
-            output_list_of_jsons.append(','.join(list_of_random_json))
-        return '{[' + '],['.join(output_list_of_jsons) + ']}'
+            output_list_of_jsons.append(', '.join(list_of_random_json))
+        return '{[' + '], ['.join(output_list_of_jsons) + ']}'
 
     def print_statistics(self):
+        print('\n\n')
+        raw_output = self.return_random_ao_json_str()
+        print(f'JSON string: {raw_output}')
+        list_of_json_objects = json.loads(raw_output)
+        new_list = []
+        for json_object in list_of_json_objects:
+            new_dict = {}
+            for key, val in json_object.items():
+                tmp_val = val
+                if isinstance(val, str):
+                    if len(val) > 25:
+                        tmp_val = tmp_val[:10] + '...' + tmp_val[-10:] + '(length=2000)'
+                new_dict[key] = tmp_val
+            new_list.append(new_dict)
+        pprint.pprint(new_list)
+        print('\n' * 2)
+        print('#' * 80)
+
         print(f'{self.number_of_episodes=}')
         tmp_details_list = [question_object.return_details() for question_object in self.list_of_zofar_questions]
         tmp_details_str = '\n'.join(tmp_details_list)
         print(tmp_details_str)
-        print('\n\n')
-        raw_output = self.return_random_ao_json_str()
-        print(f'{len(raw_output)=}')
+
+        print(f'{len(raw_output)=} chars')
         hexencoded_and_compressed = hexencode_and_compress(raw_output)
         print(f'{len(hexencoded_and_compressed)=}')
         print(f' would need: {math.ceil(len(hexencoded_and_compressed) / self.chars_per_db_variable)} zofar variables.')
@@ -284,51 +308,90 @@ class ZofarQuestionCollection:
         print(f' would need: {math.ceil(len(compressed) / self.chars_per_db_variable)} zofar variables.')
 
 
+# instantiate a new ZofarQuestionCollection object, set number of episodes
 y = ZofarQuestionCollection(numer_of_episodes=20)
 
-y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=10, list_of_variable_names=['var01']))
-y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=5, list_of_variable_names=['var02']))
-y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=3, list_of_variable_names=['var03']))
-y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=10, list_of_variable_names=['var15']))
-y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=5, list_of_variable_names=['var16']))
-y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=3, list_of_variable_names=['var17']))
+# initiate variable_counter (for consecutive naming/numbering of variables
+variable_counter = 0
 
-y.add_question_object(ZofarQuestionMultipleChoice(list_of_variable_names=['var04', 'var05', 'var06']))
-y.add_question_object(ZofarQuestionMultipleChoice(list_of_variable_names=['var18', 'var19', 'var20']))
-y.add_question_object(
-    ZofarQuestionMultipleChoiceMatrix(no_of_answer_options=5, list_of_variable_names=['var07', 'var08', 'var09']))
+# set number of questionSingleChoice
+no_of_sc_questions = 5
+# set number of answer options per questionSingleChoice
+no_of_sc_aos = 7
+# create a list of variable names
+list_of_variable_names = ['var' + str(i + variable_counter) for i in range(no_of_sc_questions)]
+# update variable counter (for next section)
+variable_counter += len(list_of_variable_names)
+for variable_name in list_of_variable_names:
+    # add question to ZofarQuestionCollection object
+    y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=no_of_sc_aos,
+                                                    list_of_variable_names=[variable_name]))
 
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var10']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var11']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var12']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var13']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var14']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var15']))
+# set number of questionMultipleChoice
+no_of_mc_questions = 5
+# set number of answer options/variables per questoin
+no_of_mc_vars = 3
+# create a list of variable names
+list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
+                          k in range(no_of_mc_questions)]
+# update variable counter (for next section)
+variable_counter += no_of_mc_questions * no_of_mc_vars
+for variable_names_list in list_of_variable_names:
+    # add question to ZofarQuestionCollection object
+    y.add_question_object(ZofarQuestionMultipleChoice(list_of_variable_names=variable_names_list))
+
+# set number of questionMultipleChoiceMatrix
+no_of_mc_matrix_questions = 2
+# set number of aos/items (columns)
+no_of_mc_matrix_aos = 5
+# create a list of variable names
+list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
+                          k in range(no_of_mc_questions)]
+# update variable counter (for next section)
+variable_counter += len(list_of_variable_names)
+for variable_names_list in list_of_variable_names:
+    # add question to ZofarQuestionCollection object
+    y.add_question_object(ZofarQuestionMultipleChoiceMatrix(no_of_answer_options=no_of_mc_matrix_aos,
+                                                            list_of_variable_names=variable_names_list))
+
+# set number of questionOpen
+no_of_question_open = 6
+length_of_text_fields = 2000
+random_characters = False
+# create a list of variable names
+list_of_variable_names = ['var' + str(i + variable_counter) for i in range(10, 16)]
+# update variable counter (for next section)
+variable_counter += len(list_of_variable_names)
+for variable_name in list_of_variable_names:
+    # add question to ZofarQuestionCollection object
+    y.add_question_object(ZofarQuestionOpen(list_of_variable_names=[variable_name],
+                                            random_characters=random_characters))
 
 y.print_statistics()
 
 print('###')
 
-s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
-b = bytes.fromhex(s)
+if False:
+    s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
+    b = bytes.fromhex(s)
 
-t = snappy.decompress(b)
-r = t.decode('utf-8')
-print(r)
+    t = snappy.decompress(b)
+    r = t.decode('utf-8')
+    print(r)
 
-test_dict = create_test_dict(number_of_keys=100, val_length=2000)
+    test_dict = create_test_dict(number_of_keys=100, val_length=2000)
 
-print(len(str(test_dict)))
+    print(len(str(test_dict)))
 
-x = hexencode_and_compress(str(test_dict))
-print(len(x))
-y = compress(str(test_dict))
-print(len(y))
-print()
+    x = hexencode_and_compress(str(test_dict))
+    print(len(x))
+    y = compress(str(test_dict))
+    print(len(y))
+    print()
 
-print(f'{len(r*1000)=}')
-z1 = hexencode_and_compress(input_str=r * 1000)
-z2 = compress(input_str=r * 1000)
-print(f'{len(z1)=}')
-print(f'{len(z2)=}')
-print()
+    print(f'{len(r*1000)=}')
+    z1 = hexencode_and_compress(input_str=r * 1000)
+    z2 = compress(input_str=r * 1000)
+    print(f'{len(z1)=}')
+    print(f'{len(z2)=}')
+    print()
