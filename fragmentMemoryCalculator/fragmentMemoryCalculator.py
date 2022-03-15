@@ -13,6 +13,8 @@ import lorem
 from dataclasses import dataclass
 import abc
 import math
+import json
+import pprint
 
 
 def hexdecode_and_decompress(input_str: str) -> str:
@@ -98,7 +100,7 @@ class ZofarQuestionSingleChoice(ZofarQuestion, ABC):
         self.set_up()
         ao = random.choice(self.list_of_answer_options)
         varname = self.list_of_variable_names[0]
-        return f'"{varname}": "{ao}"'
+        return f'"{varname}":"{ao}"'
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
@@ -141,7 +143,7 @@ class ZofarQuestionSingleChoiceMatrix(ZofarQuestion, ABC):
         list_of_json_strings = []
         for question_object in self.list_of_sc_question_objects:
             list_of_json_strings.append(question_object.return_random_ao_json_str())
-        return ', '.join(list_of_json_strings)
+        return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
@@ -157,8 +159,8 @@ class ZofarQuestionMultipleChoice(ZofarQuestion, ABC):
         list_of_json_strings = []
         for varname in self.list_of_variable_names:
             value = random.choice(self.list_of_answer_options)
-            list_of_json_strings.append(f'"{varname}": "{value}"')
-        return ', '.join(list_of_json_strings)
+            list_of_json_strings.append(f'"{varname}":"{value}"')
+        return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.list_of_answer_options=}'
@@ -202,7 +204,7 @@ class ZofarQuestionMultipleChoiceMatrix(ZofarQuestion, ABC):
         list_of_json_strings = []
         for question_object in self.list_of_mc_question_objects:
             list_of_json_strings.append(question_object.return_random_ao_json_str())
-        return ', '.join(list_of_json_strings)
+        return ','.join(list_of_json_strings)
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.no_of_answer_options=}'
@@ -213,11 +215,15 @@ class ZofarQuestionMultipleChoiceMatrix(ZofarQuestion, ABC):
 class ZofarQuestionOpen(ZofarQuestion, ABC):
     question_type: str = 'questionOpen'
     length_of_text: int = 2000
+    random_characters: bool = True
 
     def return_random_ao_json_str(self):
         varname = self.list_of_variable_names[0]
 
-        return f'"{varname}": "{return_random_string(self.length_of_text)}"'
+        if self.random_characters:
+            return f'"{varname}":"{return_random_string(self.length_of_text)}"'
+        else:
+            return f'"{varname}":"{return_lorem_text(self.length_of_text)}"'
 
     def return_details(self) -> str:
         output_str = f'{self.question_type=}, {self.list_of_variable_names=}, {self.length_of_text=}'
@@ -257,24 +263,41 @@ class ZofarQuestionCollection:
         output_list_of_jsons = []
         for i in range(self.number_of_episodes):
             header = f'"id": {i}, '
-            header += f'"startDate": "{self.timestamp_object.return_random_timestamp_inbetween()}", '
-            header += f'"endDate": "{self.timestamp_object.return_random_timestamp_inbetween()}", '
-            header += f'"typeColor": "black", '
-            header += f'"type": "Slot2", '
-            header += f'"state": "new", '
+            header += f'"startDate":"{self.timestamp_object.return_random_timestamp_inbetween()}",'
+            header += f'"endDate":"{self.timestamp_object.return_random_timestamp_inbetween()}",'
+            header += f'"typeColor":"black",'
+            header += f'"type":"Slot2",'
+            header += f'"state":"new"'
             list_of_random_json = [header]
             for question in self.list_of_zofar_questions:
                 list_of_random_json.append(question.return_random_ao_json_str())
             output_list_of_jsons.append(', '.join(list_of_random_json))
-        return '{[' + '], ['.join(output_list_of_jsons) + ']}'
+        return '[{' + '},{'.join(output_list_of_jsons) + '}]'
 
     def print_statistics(self):
+        print('\n\n')
+        raw_output = self.return_random_ao_json_str()
+        print(f'JSON string: {raw_output}')
+        list_of_json_objects = json.loads(raw_output)
+        new_list = []
+        for json_object in list_of_json_objects:
+            new_dict = {}
+            for key, val in json_object.items():
+                tmp_val = val
+                if isinstance(val, str):
+                    if len(val) > 25:
+                        tmp_val = tmp_val[:10] + '...' + tmp_val[-10:] + '(length=2000)'
+                new_dict[key] = tmp_val
+            new_list.append(new_dict)
+        pprint.pprint(new_list)
+        print('\n'*2)
+        print('#'*80)
+
         print(f'{self.number_of_episodes=}')
         tmp_details_list = [question_object.return_details() for question_object in self.list_of_zofar_questions]
         tmp_details_str = '\n'.join(tmp_details_list)
         print(tmp_details_str)
-        print('\n\n')
-        raw_output = self.return_random_ao_json_str()
+
         print(f'{len(raw_output)=}')
         hexencoded_and_compressed = hexencode_and_compress(raw_output)
         print(f'{len(hexencoded_and_compressed)=}')
@@ -298,37 +321,38 @@ y.add_question_object(ZofarQuestionMultipleChoice(list_of_variable_names=['var18
 y.add_question_object(
     ZofarQuestionMultipleChoiceMatrix(no_of_answer_options=5, list_of_variable_names=['var07', 'var08', 'var09']))
 
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var10']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var11']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var12']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var13']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var14']))
-y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var15']))
+y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var10'], random_characters=False))
+y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var11'], random_characters=False))
+y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var12'], random_characters=False))
+y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var13'], random_characters=False))
+y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var14'], random_characters=False))
+y.add_question_object(ZofarQuestionOpen(list_of_variable_names=['var15'], random_characters=False))
 
 y.print_statistics()
 
 print('###')
 
-s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
-b = bytes.fromhex(s)
+if False:
+    s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
+    b = bytes.fromhex(s)
 
-t = snappy.decompress(b)
-r = t.decode('utf-8')
-print(r)
+    t = snappy.decompress(b)
+    r = t.decode('utf-8')
+    print(r)
 
-test_dict = create_test_dict(number_of_keys=100, val_length=2000)
+    test_dict = create_test_dict(number_of_keys=100, val_length=2000)
 
-print(len(str(test_dict)))
+    print(len(str(test_dict)))
 
-x = hexencode_and_compress(str(test_dict))
-print(len(x))
-y = compress(str(test_dict))
-print(len(y))
-print()
+    x = hexencode_and_compress(str(test_dict))
+    print(len(x))
+    y = compress(str(test_dict))
+    print(len(y))
+    print()
 
-print(f'{len(r*1000)=}')
-z1 = hexencode_and_compress(input_str=r * 1000)
-z2 = compress(input_str=r * 1000)
-print(f'{len(z1)=}')
-print(f'{len(z2)=}')
-print()
+    print(f'{len(r*1000)=}')
+    z1 = hexencode_and_compress(input_str=r * 1000)
+    z2 = compress(input_str=r * 1000)
+    print(f'{len(z1)=}')
+    print(f'{len(z2)=}')
+    print()
