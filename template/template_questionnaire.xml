@@ -48,8 +48,8 @@
         </zofar:triggers>
         <zofar:transitions>
             <zofar:transition target="set_episode_index" />
-            <zofar:transition target="reset_variables" condition="false"/>
-            <zofar:transition target="check_variables" condition="false"/>
+            <zofar:transition target="reset_json_array" condition="false"/>
+            <zofar:transition target="check_episode_data" condition="false"/>
         </zofar:transitions>
     </zofar:page>
 
@@ -63,7 +63,7 @@
             XXX_SET_EPISODE_INDEX_TRIGGERS_PLACEHOLDER_XXX
         </zofar:triggers>
         <zofar:transitions>
-            <zofar:transition target="frag_test" />
+            <zofar:transition target="set_episode_data" />
         </zofar:transitions>
     </zofar:page>
 
@@ -83,22 +83,23 @@
         </zofar:transitions>
     </zofar:page>
 
-	<zofar:page uid="reset_variables">
+	<zofar:page uid="reset_json_array">
         <zofar:header>
         </zofar:header>
         <zofar:body uid="b">
-            XXX_RESET_VARIABLES_BODY_PLACEHOLDER_XXX
+            XXX_RESET_JSON_ARRAY_BODY_PLACEHOLDER_XXX
         </zofar:body>
         <zofar:triggers>
-            XXX_RESET_VARIABLES_TRIGGERS_PLACEHOLDER_XXX
+            XXX_RESET_JSON_ARRAY_TRIGGERS_PLACEHOLDER_XXX
         </zofar:triggers>
         <zofar:transitions>
-            <zofar:transition target="check_variables" />
+            <zofar:transition target="check_episode_data" />
         </zofar:transitions>
     </zofar:page>
 
 	<zofar:page uid="check_episode_data">
         <zofar:header>
+            XXX_CHECK_EPISODE_DATA_HEADER_PLACEHOLDER_XXX
         </zofar:header>
         <zofar:body uid="b">
             XXX_CHECK_EPISODE_DATA_BODY_PLACEHOLDER_XXX

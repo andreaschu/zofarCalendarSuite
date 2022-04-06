@@ -218,11 +218,39 @@ class Question_QML_JSON_Trigger_generator:
                             'set_episode_index_trigger': 'XXX_SET_EPISODE_INDEX_TRIGGERS_PLACEHOLDER_XXX',
                             'set_episode_data_body': 'XXX_SET_EPISODE_DATA_BODY_PLACEHOLDER_XXX',
                             'set_episode_data_trigger': 'XXX_SET_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX',
-                            'reset_variables_body': 'XXX_RESET_VARIABLES_BODY_PLACEHOLDER_XXX',
-                            'reset_variables_trigger': 'XXX_RESET_VARIABLES_TRIGGERS_PLACEHOLDER_XXX',
+                            'reset_json_array_body': 'XXX_RESET_JSON_ARRAY_BODY_PLACEHOLDER_XXX',
+                            'reset_json_array_trigger': 'XXX_RESET_JSON_ARRAY_TRIGGERS_PLACEHOLDER_XXX',
                             'check_episode_data_header': 'XXX_CHECK_EPISODE_DATA_HEADER_PLACEHOLDER_XXX',
                             'check_episode_data_body': 'XXX_CHECK_EPISODE_DATA_BODY_PLACEHOLDER_XXX',
                             'check_episode_data_trigger': 'XXX_CHECK_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX'}
+
+        # assert that all expected placeholder are found within the xml template
+        for key, val in replacement_dict.items():
+            try:
+                assert re.findall(val, tmp_xml_str) != []
+            except AssertionError as e:
+                print('\n\n')
+                print('#' * 100)
+                print(tmp_xml_str)
+                print('#' * 100)
+                print('\n\n')
+                print(f'NOT FOUND:  {key=}, {val=}')
+                print('#' * 100)
+                print('\n\n')
+                raise AssertionError(e)
+
+        # assert that all placeholders found within the xml template are accounted for in replacement_dict values
+        for placeholder in re.findall(r'XXX_.+?_XXX', tmp_xml_str):
+            try:
+                assert placeholder in replacement_dict.values()
+            except AssertionError as e:
+                print('\n\n')
+                print('#' * 100)
+                print(tmp_xml_str)
+                print('\n\n')
+                print('#' * 100)
+                print(f'NOT FOUND: {placeholder}')
+                raise AssertionError(e)
 
         # replace placeholder strings
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['variable_declaration'],
@@ -237,9 +265,9 @@ class Question_QML_JSON_Trigger_generator:
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_index_trigger'],
                                           '<!-- set_episode_index_trigger-->')
 
-        tmp_xml_str = tmp_xml_str.replace(replacement_dict['reset_variables_body'],
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['reset_json_array_body'],
                                           '<!-- reset_variables_body-->')
-        tmp_xml_str = tmp_xml_str.replace(replacement_dict['reset_variables_trigger'],
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['reset_json_array_trigger'],
                                           self.reset_whole_json())
 
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_data_body'],
@@ -254,7 +282,12 @@ class Question_QML_JSON_Trigger_generator:
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_trigger'],
                                           self.return_json_load() + self.return_json_save())
 
-        assert re.findall(r'XXX_.+?_XXX', tmp_xml_str) == []
+        try:
+            assert re.findall(r'XXX_.+?_XXX', tmp_xml_str) == []
+        except AssertionError as e:
+            print(tmp_xml_str)
+            raise AssertionError(e)
+
 
         output_file = Path(r'../output/questionnaire.xml')
         output_file.write_text(data=tmp_xml_str, encoding='utf-8')
@@ -264,6 +297,9 @@ class Question_QML_JSON_Trigger_generator:
 
     def return_variable_declaration_str(self) -> str:
         tmp_variable_declaration_str = '<zofar:variable name="episode_index" type="string"/>\n'
+
+        # make sure list of fragment variables is up to date
+        self.create_list_of_fragment_variables_names()
 
         for fragment_variable_name in self.list_of_fragment_variables_names:
             tmp_variable_declaration_str += f"""<zofar:variable name="{fragment_variable_name}" type="string"/>\n"""
@@ -351,11 +387,6 @@ class Question_QML_JSON_Trigger_generator:
         self.json_function_code_load += "\n"
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('startDate',zofar.getJsonProperty(episodeObj,'startDate')) " />\n"""
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('endDate',zofar.getJsonProperty(episodeObj,'endDate')) " />\n"""
-        self.json_function_code_load += "\n"
-        self.json_function_code_load += """				<zofar:scriptItem value="zofar.setVariableValue(v_startmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1))" />\n"""
-        self.json_function_code_load += """				<zofar:scriptItem value="zofar.setVariableValue(v_startyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)))" />\n"""
-        self.json_function_code_load += """				<zofar:scriptItem value="zofar.setVariableValue(v_endmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1))" />\n"""
-        self.json_function_code_load += """				<zofar:scriptItem value="zofar.setVariableValue(v_endyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate)))" />\n"""
         self.json_function_code_load += "\n"
         self.json_function_code_load += "\n"
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('toLoad',zofar.list())" />\n"""
