@@ -17,6 +17,7 @@
         <zofar:preload password="tester9" name="tester9" />
         <zofar:preload password="tester10" name="tester10" />
 
+
         <zofar:preload password="part1" name="part1" />
         <zofar:preload password="part2" name="part2" />
         <zofar:preload password="part3" name="part3" />
@@ -42,19 +43,71 @@
         <zofar:body uid="b">
             XXX_INDEX_BODY_PLACEHOLDER_XXX
         </zofar:body>
+        <zofar:triggers>
+            XXX_INDEX_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+            <zofar:transition target="reset_variables" condition="false"/>
+            <zofar:transition target="check_variables" condition="false"/>
+        </zofar:transitions>
+    </zofar:page>
+
+    <zofar:page uid="set_episode_index">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_SET_EPISODE_INDEX_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_SET_EPISODE_INDEX_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
         <zofar:transitions>
             <zofar:transition target="frag_test" />
         </zofar:transitions>
     </zofar:page>
 
-	<zofar:page uid="frag_test">
+
+	<zofar:page uid="set_episode_data">
         <zofar:header>
         </zofar:header>
         <zofar:body uid="b">
-            XXX_FRAG_TEST_BODY_PLACEHOLDER_XXX
+            XXX_SET_EPISODE_DATA_BODY_PLACEHOLDER_XXX
         </zofar:body>
+        <zofar:triggers>
+            XXX_SET_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
         <zofar:transitions>
-            <zofar:transition target="end" />
+            <zofar:transition target="set_episode_index" />
+            <zofar:transition target="end" condition="false"/>
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="reset_variables">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_RESET_VARIABLES_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_RESET_VARIABLES_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="check_variables" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="check_episode_data">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_CHECK_EPISODE_DATA_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_CHECK_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
         </zofar:transitions>
     </zofar:page>
 

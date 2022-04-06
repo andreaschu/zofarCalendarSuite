@@ -1,10 +1,20 @@
 __version__ = '0.0.2'
 
+import re
 import string
 import math
 from pathlib import Path
+import os
+import shutil
 
-output_directory = Path(r'output')
+here = Path(__file__).parent
+if 'PROJECTFOLDER' in os.environ.keys():
+    target_project_folder = Path(os.getenv('PROJECTFOLDER'), 'src', 'main', 'resources')
+    assert target_project_folder.exists()
+    target_project_xml = Path(target_project_folder, 'questionnaire.xml')
+
+
+output_directory = Path(here, r'output')
 
 
 class Question_QML_generator:
@@ -177,25 +187,74 @@ class Question_QML_JSON_Trigger_generator:
         self.fragment_variable_name_stem = fragment_variable_name_stem
         self.list_of_fragment_variables_names = []
 
+    def display_whole_json(self) -> str:
+        tmp_display_whole_json = '<!-- display whole json -->'
+        return tmp_display_whole_json
+
+    def reset_whole_json(self) -> str:
+        tmp_reset_whole_json_str = '			<!-- reset whole json -->\n'
+        tmp_reset_whole_json_str += f"""			<zofar:action
+				command="zofar.frac(zofar.list({','.join(self.list_of_fragment_variables_names)}),zofar.jsonArr2str(defrac))" onExit="true" direction="forward">
+				<zofar:scriptItem value="zofar.assign('defrac',zofar.str2jsonArr(''))" />
+			</zofar:action>\n\n"""
+        return tmp_reset_whole_json_str
+
     def write_to_qml_file(self):
         # load template
         tmp_xml_str = Path(r'../template/template_questionnaire.xml').read_text(encoding='utf-8')
 
         # create questionOpen for index page (setting of episode_index)
-        tmp_question_open_str = """
+        tmp_question_open_episode_index_str = """
 			<zofar:questionOpen uid="mqsc" variable="episode_index" size="4" type="text">
                 <zofar:header>
                     <zofar:question uid="q1">episode_index</zofar:question>
                 </zofar:header>
 			</zofar:questionOpen>\n"""
 
+        replacement_dict = {'variable_declaration': 'XXX_VARIABLE_DECLARATION_PLACEHOLDER_XXX',
+                            'index_body': 'XXX_INDEX_BODY_PLACEHOLDER_XXX',
+                            'index_trigger': 'XXX_INDEX_TRIGGERS_PLACEHOLDER_XXX',
+                            'set_episode_index_body': 'XXX_SET_EPISODE_INDEX_BODY_PLACEHOLDER_XXX',
+                            'set_episode_index_trigger': 'XXX_SET_EPISODE_INDEX_TRIGGERS_PLACEHOLDER_XXX',
+                            'set_episode_data_body': 'XXX_SET_EPISODE_DATA_BODY_PLACEHOLDER_XXX',
+                            'set_episode_data_trigger': 'XXX_SET_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX',
+                            'reset_variables_body': 'XXX_RESET_VARIABLES_BODY_PLACEHOLDER_XXX',
+                            'reset_variables_trigger': 'XXX_RESET_VARIABLES_TRIGGERS_PLACEHOLDER_XXX',
+                            'check_episode_data_header': 'XXX_CHECK_EPISODE_DATA_HEADER_PLACEHOLDER_XXX',
+                            'check_episode_data_body': 'XXX_CHECK_EPISODE_DATA_BODY_PLACEHOLDER_XXX',
+                            'check_episode_data_trigger': 'XXX_CHECK_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX'}
+
         # replace placeholder strings
-        tmp_xml_str = tmp_xml_str.replace('XXX_VARIABLE_DECLARATION_PLACEHOLDER_XXX',
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['variable_declaration'],
                                           self.return_variable_declaration_str())
-        tmp_xml_str = tmp_xml_str.replace('XXX_INDEX_BODY_PLACEHOLDER_XXX',
-                                          tmp_question_open_str)
-        tmp_xml_str = tmp_xml_str.replace('XXX_FRAG_TEST_BODY_PLACEHOLDER_XXX',
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['index_body'],
+                                          '<!-- index_body-->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['index_trigger'],
+                                          '<!-- index_trigger-->')
+
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_index_body'],
+                                          tmp_question_open_episode_index_str)
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_index_trigger'],
+                                          '<!-- set_episode_index_trigger-->')
+
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['reset_variables_body'],
+                                          '<!-- reset_variables_body-->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['reset_variables_trigger'],
+                                          self.reset_whole_json())
+
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_data_body'],
                                           self.return_all_qml_code())
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_data_trigger'],
+                                          self.return_json_load() + self.return_json_save())
+
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_header'],
+                                          self.return_debug_info())
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_body'],
+                                          '<!-- check_episode_data_body-->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_trigger'],
+                                          self.return_json_load() + self.return_json_save())
+
+        assert re.findall(r'XXX_.+?_XXX', tmp_xml_str) == []
 
         output_file = Path(r'../output/questionnaire.xml')
         output_file.write_text(data=tmp_xml_str, encoding='utf-8')
@@ -241,6 +300,17 @@ class Question_QML_JSON_Trigger_generator:
 
     def print_json_load(self) -> None:
         print(self.return_json_load())
+
+    def return_debug_info(self) -> str:
+        tmp_debug_info_str = ''
+        tmp_debug_info_str += f"""			<zofar:title container="true" uid="t1">
+        				episode_index: #{{episode_index.value}} 
+        				#{{layout.BREAK}}
+                        whole json array:
+				        #{{zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(self.list_of_fragment_variables_names)})))}}
+				        #{{layout.BREAK}}
+			        </zofar:title>\n\n"""
+        return tmp_debug_info_str
 
     def return_json_load(self) -> str:
         # make sure that the list of fragment variable names is up to date
@@ -299,7 +369,7 @@ class Question_QML_JSON_Trigger_generator:
         self.json_function_code_load += """				<!-- load all values from episodeObj -->\n"""
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.getJsonProperties(episodeObj,toLoad)" />\n"""
         self.json_function_code_load += """			</zofar:action>\n"""
-        self.json_function_code_load += "\n"
+        self.json_function_code_load += "\n\n"
 
         return self.json_function_code_load
 
@@ -346,6 +416,7 @@ class Question_QML_JSON_Trigger_generator:
         self.json_function_code_save += """				<!-- save episode object into json array to DB -->\n"""
         self.json_function_code_save += """				<zofar:scriptItem value="zofar.assign('defrac',zofar.addOrReplaceJson(defrac,episodeObj,zofar.toInteger(episode_index.value)))" />\n"""
         self.json_function_code_save += """			</zofar:action>\n"""
+        self.json_function_code_save += "\n\n"
 
         return self.json_function_code_save
 
@@ -407,3 +478,8 @@ for i in range(open_question_count):
 #
 # trigger_generator.print_variable_declaration_str()
 trigger_generator.write_to_qml_file()
+
+if 'PROJECTFOLDER' in os.environ.keys():
+    source_file = Path(here.parent, 'output', 'questionnaire.xml')
+    assert source_file.exists()
+    shutil.copy(source_file, target_project_xml)
