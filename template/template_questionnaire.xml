@@ -49,7 +49,9 @@
         <zofar:transitions>
             <zofar:transition target="set_episode_index" />
             <zofar:transition target="reset_json_array" condition="false"/>
-            <zofar:transition target="check_episode_data" condition="false"/>
+            <zofar:transition target="inspect_episode_data" condition="false"/>
+            <zofar:transition target="inspect_fragment" condition="false"/>
+            <zofar:transition target="set_fragment" condition="false"/>
         </zofar:transitions>
     </zofar:page>
 
@@ -93,19 +95,49 @@
             XXX_RESET_JSON_ARRAY_TRIGGERS_PLACEHOLDER_XXX
         </zofar:triggers>
         <zofar:transitions>
-            <zofar:transition target="check_episode_data" />
+            <zofar:transition target="inspect_episode_data" />
         </zofar:transitions>
     </zofar:page>
 
-	<zofar:page uid="check_episode_data">
+	<zofar:page uid="inspect_episode_data">
         <zofar:header>
-            XXX_CHECK_EPISODE_DATA_HEADER_PLACEHOLDER_XXX
+            XXX_INSPECT_EPISODE_DATA_HEADER_PLACEHOLDER_XXX
         </zofar:header>
         <zofar:body uid="b">
-            XXX_CHECK_EPISODE_DATA_BODY_PLACEHOLDER_XXX
+            XXX_INSPECT_EPISODE_DATA_BODY_PLACEHOLDER_XXX
         </zofar:body>
         <zofar:triggers>
-            XXX_CHECK_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX
+            XXX_INSPECT_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="inspect_fragment">
+        <zofar:header>
+            XXX_INSPECT_FRAGMENT_HEADER_PLACEHOLDER_XXX
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_INSPECT_FRAGMENT_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_INSPECT_FRAGMENT_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="set_fragment">
+        <zofar:header>
+            XXX_SET_FRAGMENT_HEADER_PLACEHOLDER_XXX
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_SET_FRAGMENT_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_SET_FRAGMENT_TRIGGERS_PLACEHOLDER_XXX
         </zofar:triggers>
         <zofar:transitions>
             <zofar:transition target="set_episode_index" />

@@ -13,7 +13,6 @@ if 'PROJECTFOLDER' in os.environ.keys():
     assert target_project_folder.exists()
     target_project_xml = Path(target_project_folder, 'questionnaire.xml')
 
-
 output_directory = Path(here, r'output')
 
 
@@ -87,8 +86,9 @@ class Question_QML_generator:
         self.generated_qml_string += """\t\t\t\t</zofar:header>\n"""
         self.generated_qml_string += """\t\t\t</zofar:questionOpen>\n\n"""
 
-        self.list_of_varnames.append(self.varname_stem)
-        self.variable_declaration_string += f'<zofar:variable name="{self.varname_stem}" type="string"/>\n'
+        if self.varname_stem not in self.list_of_varnames:
+            self.list_of_varnames.append(self.varname_stem)
+        self.variable_declaration_string += f'        <zofar:variable name="{self.varname_stem}" type="string"/>\n'
 
     def generate_matrix_double(self):
         raise NotImplementedError()
@@ -148,7 +148,8 @@ class Question_QML_generator:
             tmp_varname += string.ascii_lowercase[i % 26]
 
             self.generated_qml_string += tmp_varname
-            self.list_of_varnames.append(tmp_varname)
+            if tmp_varname not in self.list_of_varnames:
+                self.list_of_varnames.append(tmp_varname)
 
             self.generated_qml_string += '" uid="rd">\n'
             for i in range(0, len(self.list_of_answer_option_labels)):
@@ -199,6 +200,17 @@ class Question_QML_JSON_Trigger_generator:
 			</zofar:action>\n\n"""
         return tmp_reset_whole_json_str
 
+    def return_fragment_variable_qml_edit_code(self) -> str:
+        tmp_list_of_open_question_qml_str = []
+        for index, fragment_variable in enumerate(self.list_of_fragment_variables_names):
+            tmp_question_object = Question_QML_generator(varname_stem=fragment_variable,
+                                                         index=index + 1,
+                                                         question_type='questionOpen',
+                                                         question_text=f'{fragment_variable}: ')
+            tmp_question_object.generate_question_open()
+            tmp_list_of_open_question_qml_str.append(tmp_question_object.generated_qml_string)
+        return '\n'.join(tmp_list_of_open_question_qml_str)
+
     def write_to_qml_file(self):
         # load template
         tmp_xml_str = Path(r'../template/template_questionnaire.xml').read_text(encoding='utf-8')
@@ -220,9 +232,15 @@ class Question_QML_JSON_Trigger_generator:
                             'set_episode_data_trigger': 'XXX_SET_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX',
                             'reset_json_array_body': 'XXX_RESET_JSON_ARRAY_BODY_PLACEHOLDER_XXX',
                             'reset_json_array_trigger': 'XXX_RESET_JSON_ARRAY_TRIGGERS_PLACEHOLDER_XXX',
-                            'check_episode_data_header': 'XXX_CHECK_EPISODE_DATA_HEADER_PLACEHOLDER_XXX',
-                            'check_episode_data_body': 'XXX_CHECK_EPISODE_DATA_BODY_PLACEHOLDER_XXX',
-                            'check_episode_data_trigger': 'XXX_CHECK_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX'}
+                            'inspect_episode_data_header': 'XXX_INSPECT_EPISODE_DATA_HEADER_PLACEHOLDER_XXX',
+                            'inspect_episode_data_body': 'XXX_INSPECT_EPISODE_DATA_BODY_PLACEHOLDER_XXX',
+                            'inspect_episode_data_trigger': 'XXX_INSPECT_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX',
+                            'inspect_fragment_header': 'XXX_INSPECT_FRAGMENT_HEADER_PLACEHOLDER_XXX',
+                            'inspect_fragment_body': 'XXX_INSPECT_FRAGMENT_BODY_PLACEHOLDER_XXX',
+                            'inspect_fragment_trigger': 'XXX_INSPECT_FRAGMENT_TRIGGERS_PLACEHOLDER_XXX',
+                            'set_fragment_header': 'XXX_SET_FRAGMENT_HEADER_PLACEHOLDER_XXX',
+                            'set_fragment_body': 'XXX_SET_FRAGMENT_BODY_PLACEHOLDER_XXX',
+                            'set_fragment_trigger': 'XXX_SET_FRAGMENT_TRIGGERS_PLACEHOLDER_XXX'}
 
         # assert that all expected placeholder are found within the xml template
         for key, val in replacement_dict.items():
@@ -256,7 +274,7 @@ class Question_QML_JSON_Trigger_generator:
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['variable_declaration'],
                                           self.return_variable_declaration_str())
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['index_body'],
-                                          '<!-- index_body-->')
+                                          '<!-- index_body -->')
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['index_trigger'],
                                           '<!-- index_trigger-->')
 
@@ -275,19 +293,38 @@ class Question_QML_JSON_Trigger_generator:
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_data_trigger'],
                                           self.return_json_load() + self.return_json_save())
 
-        tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_header'],
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_episode_data_header'],
                                           self.return_debug_info())
-        tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_body'],
-                                          '<!-- check_episode_data_body-->')
-        tmp_xml_str = tmp_xml_str.replace(replacement_dict['check_episode_data_trigger'],
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_episode_data_body'],
+                                          '<!-- inspect_episode_data_body-->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_episode_data_trigger'],
                                           self.return_json_load() + self.return_json_save())
+
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_fragment_header'],
+                                          '<!-- set_fragment_header -->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_fragment_body'],
+                                          self.return_fragment_variable_qml_edit_code())
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_fragment_trigger'],
+                                          '<!-- set_fragment_trigger -->')
+
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_fragment_header'],
+                                          '<!-- inspect_fragment_header -->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_fragment_body'],
+                                          '<!-- inspect_fragment_body-->')
+        tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_fragment_trigger'],
+                                          '<!-- inspect_fragment_trigger -->')
+
+
 
         try:
             assert re.findall(r'XXX_.+?_XXX', tmp_xml_str) == []
         except AssertionError as e:
             print(tmp_xml_str)
+            print('\n\n')
+            print('#' * 100)
+            print('\n\n')
+            print(re.findall(r'XXX_.+?_XXX', tmp_xml_str))
             raise AssertionError(e)
-
 
         output_file = Path(r'../output/questionnaire.xml')
         output_file.write_text(data=tmp_xml_str, encoding='utf-8')
@@ -296,13 +333,13 @@ class Question_QML_JSON_Trigger_generator:
         print(self.return_variable_declaration_str())
 
     def return_variable_declaration_str(self) -> str:
-        tmp_variable_declaration_str = '<zofar:variable name="episode_index" type="string"/>\n'
+        tmp_variable_declaration_str = '        <zofar:variable name="episode_index" type="string"/>\n'
 
         # make sure list of fragment variables is up to date
         self.create_list_of_fragment_variables_names()
 
         for fragment_variable_name in self.list_of_fragment_variables_names:
-            tmp_variable_declaration_str += f"""<zofar:variable name="{fragment_variable_name}" type="string"/>\n"""
+            tmp_variable_declaration_str += f'        <zofar:variable name="{fragment_variable_name}" type="string"/>\n'
 
         for question_generator_object in self.list_of_question_qml_generator_objects:
             assert isinstance(question_generator_object, Question_QML_generator)
@@ -385,8 +422,8 @@ class Question_QML_JSON_Trigger_generator:
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('monthMap',zofar.map('1=ao1,2=ao2,3=ao3,4=ao4,5=ao5,6=ao6,7=ao7,8=ao8,9=ao9,10=ao10,11=ao11,12=ao12'))" />\n"""
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('yearMap',zofar.map('2018=ao1,2019=ao2,2020=ao3,2021=ao4,2022=ao5,2023=ao6,2024=ao7'))" />\n"""
         self.json_function_code_load += "\n"
-        self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('startDate',zofar.getJsonProperty(episodeObj,'startDate')) " />\n"""
-        self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('endDate',zofar.getJsonProperty(episodeObj,'endDate')) " />\n"""
+        self.json_function_code_load += """				<!-- <zofar:scriptItem value="zofar.assign('startDate',zofar.getJsonProperty(episodeObj,'startDate')) -->" />\n"""
+        self.json_function_code_load += """				<!-- <zofar:scriptItem value="zofar.assign('endDate',zofar.getJsonProperty(episodeObj,'endDate')) -->" />\n"""
         self.json_function_code_load += "\n"
         self.json_function_code_load += "\n"
         self.json_function_code_load += """				<zofar:scriptItem value="zofar.assign('toLoad',zofar.list())" />\n"""
@@ -411,45 +448,45 @@ class Question_QML_JSON_Trigger_generator:
         # make sure that the list of fragment variable names is up to date
         self.create_list_of_fragment_variables_names()
 
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """			<!-- BAUKASTEN: BASIC page setup within loop when EXITING page -->\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """			<!-- last command: fragment json object into several variables -->\n"""
-        self.json_function_code_save += """			<zofar:action\n"""
-        self.json_function_code_save += f"""				command="zofar.frac(zofar.list({','.join(self.list_of_fragment_variables_names)}),zofar.jsonArr2str(defrac))"\n"""
-        self.json_function_code_save += """				onExit="true">\n"""
-        self.json_function_code_save += """				<!-- generic json setup -->\n"""
-        self.json_function_code_save += """				<zofar:scriptItem\n"""
-        self.json_function_code_save += f"""					value="zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(self.list_of_fragment_variables_names)}))))" />\n"""
-        self.json_function_code_save += """				<zofar:scriptItem\n"""
-        self.json_function_code_save += """					value="zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value))) " />\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """				<!--  initialize a map of variables to write to DB -->\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """				<zofar:scriptItem value="zofar.assign('toPersist',zofar.map())" />\n"""
-        self.json_function_code_save += """					<!-- add variablenames and values to save to DB -->\n"""
-        self.json_function_code_save += """						<!-- Syntax: toPersist.put('VARIABLENAME',VALUE) -->\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """					<!-- !!Important!! for SC to use valueID instead of Value -->\n"""
-        self.json_function_code_save += """						<!-- Syntax: toPersist.put('VARIABLENAME',VARIABLENAME.valueId) -->\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """					<!-- all other variables: use value -->\n"""
-        self.json_function_code_save += """						<!-- Syntax: toPersist.put('VARIABLENAME',VARIABLENAME.value) -->\n"""
+        tmp_json_function_code_save = "\n"
+        tmp_json_function_code_save += """			<!-- BAUKASTEN: BASIC page setup within loop when EXITING page -->\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """			<!-- last command: fragment json object into several variables -->\n"""
+        tmp_json_function_code_save += """			<zofar:action\n"""
+        tmp_json_function_code_save += f"""				command="zofar.frac(zofar.list({','.join(self.list_of_fragment_variables_names)}),zofar.jsonArr2str(defrac))"\n"""
+        tmp_json_function_code_save += """				onExit="true">\n"""
+        tmp_json_function_code_save += """				<!-- generic json setup -->\n"""
+        tmp_json_function_code_save += """				<zofar:scriptItem\n"""
+        tmp_json_function_code_save += f"""					value="zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(self.list_of_fragment_variables_names)}))))" />\n"""
+        tmp_json_function_code_save += """				<zofar:scriptItem\n"""
+        tmp_json_function_code_save += """					value="zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value))) " />\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """				<!--  initialize a map of variables to write to DB -->\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """				<zofar:scriptItem value="zofar.assign('toPersist',zofar.map())" />\n"""
+        tmp_json_function_code_save += """					<!-- add variablenames and values to save to DB -->\n"""
+        tmp_json_function_code_save += """						<!-- Syntax: toPersist.put('VARIABLENAME',VALUE) -->\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """					<!-- !!Important!! for SC to use valueID instead of Value -->\n"""
+        tmp_json_function_code_save += """						<!-- Syntax: toPersist.put('VARIABLENAME',VARIABLENAME.valueId) -->\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """					<!-- all other variables: use value -->\n"""
+        tmp_json_function_code_save += """						<!-- Syntax: toPersist.put('VARIABLENAME',VARIABLENAME.value) -->\n"""
         for qml_generator_object in self.list_of_question_qml_generator_objects:
             assert isinstance(qml_generator_object, Question_QML_generator)
             for variable_name in qml_generator_object.list_of_varnames:
-                self.json_function_code_load += f"""				<zofar:scriptItem value="toPersist.put('{variable_name}',{variable_name}.value)" />\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """				<!-- write all values to episodeObj (still in RAM) -->\n"""
-        self.json_function_code_save += """				<zofar:scriptItem value="zofar.setJsonProperties('episodeObj',episodeObj,toPersist)" />\n"""
-        self.json_function_code_save += "\n"
-        self.json_function_code_save += """				<!-- generic json setup -->\n"""
-        self.json_function_code_save += """				<!-- save episode object into json array to DB -->\n"""
-        self.json_function_code_save += """				<zofar:scriptItem value="zofar.assign('defrac',zofar.addOrReplaceJson(defrac,episodeObj,zofar.toInteger(episode_index.value)))" />\n"""
-        self.json_function_code_save += """			</zofar:action>\n"""
-        self.json_function_code_save += "\n\n"
+                tmp_json_function_code_save += f"""				<zofar:scriptItem value="toPersist.put('{variable_name}',{variable_name}.value)" />\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """				<!-- write all values to episodeObj (still in RAM) -->\n"""
+        tmp_json_function_code_save += """				<zofar:scriptItem value="zofar.setJsonProperties('episodeObj',episodeObj,toPersist)" />\n"""
+        tmp_json_function_code_save += "\n"
+        tmp_json_function_code_save += """				<!-- generic json setup -->\n"""
+        tmp_json_function_code_save += """				<!-- save episode object into json array to DB -->\n"""
+        tmp_json_function_code_save += """				<zofar:scriptItem value="zofar.assign('defrac',zofar.addOrReplaceJson(defrac,episodeObj,zofar.toInteger(episode_index.value)))" />\n"""
+        tmp_json_function_code_save += """			</zofar:action>\n"""
+        tmp_json_function_code_save += "\n\n"
 
-        return self.json_function_code_save
+        return tmp_json_function_code_save
 
 
 x = Question_QML_generator('matrixQuestionSingleChoice', varname_stem='v32', index=1)
