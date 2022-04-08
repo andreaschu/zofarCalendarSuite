@@ -17,6 +17,17 @@
         <zofar:preload password="tester9" name="tester9" />
         <zofar:preload password="tester10" name="tester10" />
 
+        <zofar:preload password="performance1" name="performance1" />
+        <zofar:preload password="performance2" name="performance2" />
+        <zofar:preload password="performance3" name="performance3" />
+        <zofar:preload password="performance4" name="performance4" />
+        <zofar:preload password="performance5" name="performance5" />
+        <zofar:preload password="performance6" name="performance6" />
+        <zofar:preload password="performance7" name="performance7" />
+        <zofar:preload password="performance8" name="performance8" />
+        <zofar:preload password="performance9" name="performance9" />
+        <zofar:preload password="performance10" name="performance10" />
+
 
         <zofar:preload password="part1" name="part1" />
         <zofar:preload password="part2" name="part2" />
