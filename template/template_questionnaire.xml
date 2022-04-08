@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zofar:questionnaire xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                     xmlns:zofar="http://www.his.de/zofar/xml/questionnaire"
+                     xmlns:display="http://www.dzhw.eu/zofar/xml/display"
+                     language="de">
+    <zofar:name>Fragment Variable Sizing Test</zofar:name>
+    <zofar:description />
+    <zofar:preloads>
+        <zofar:preload password="tester1" name="tester1" />
+        <zofar:preload password="tester2" name="tester2" />
+        <zofar:preload password="tester3" name="tester3" />
+        <zofar:preload password="tester4" name="tester4" />
+        <zofar:preload password="tester5" name="tester5" />
+        <zofar:preload password="tester6" name="tester6" />
+        <zofar:preload password="tester7" name="tester7" />
+        <zofar:preload password="tester8" name="tester8" />
+        <zofar:preload password="tester9" name="tester9" />
+        <zofar:preload password="tester10" name="tester10" />
+
+        <zofar:preload password="performance1" name="performance1" />
+        <zofar:preload password="performance2" name="performance2" />
+        <zofar:preload password="performance3" name="performance3" />
+        <zofar:preload password="performance4" name="performance4" />
+        <zofar:preload password="performance5" name="performance5" />
+        <zofar:preload password="performance6" name="performance6" />
+        <zofar:preload password="performance7" name="performance7" />
+        <zofar:preload password="performance8" name="performance8" />
+        <zofar:preload password="performance9" name="performance9" />
+        <zofar:preload password="performance10" name="performance10" />
+
+
+        <zofar:preload password="part1" name="part1" />
+        <zofar:preload password="part2" name="part2" />
+        <zofar:preload password="part3" name="part3" />
+        <zofar:preload password="part4" name="part4" />
+        <zofar:preload password="part5" name="part5" />
+        <zofar:preload password="part6" name="part6" />
+        <zofar:preload password="part7" name="part7" />
+        <zofar:preload password="part8" name="part8" />
+        <zofar:preload password="part9" name="part9" />
+        <zofar:preload password="part10" name="part10" />
+    </zofar:preloads>
+
+    <zofar:variables>
+        <zofar:variable name="language" type="string" />
+        <zofar:variable name="width" type="number" />
+        <zofar:variable name="height" type="number" />
+        XXX_VARIABLE_DECLARATION_PLACEHOLDER_XXX
+    </zofar:variables>
+
+	<zofar:page uid="index">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_INDEX_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_INDEX_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+            <zofar:transition target="reset_json_array" condition="false"/>
+            <zofar:transition target="inspect_episode_data" condition="false"/>
+            <zofar:transition target="inspect_fragment" condition="false"/>
+            <zofar:transition target="set_fragment" condition="false"/>
+        </zofar:transitions>
+    </zofar:page>
+
+    <zofar:page uid="set_episode_index">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_SET_EPISODE_INDEX_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_SET_EPISODE_INDEX_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_data" />
+        </zofar:transitions>
+    </zofar:page>
+
+
+	<zofar:page uid="set_episode_data">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_SET_EPISODE_DATA_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_SET_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+            <zofar:transition target="end" condition="false"/>
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="reset_json_array">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_RESET_JSON_ARRAY_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_RESET_JSON_ARRAY_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="inspect_episode_data" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="inspect_episode_data">
+        <zofar:header>
+            XXX_INSPECT_EPISODE_DATA_HEADER_PLACEHOLDER_XXX
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_INSPECT_EPISODE_DATA_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_INSPECT_EPISODE_DATA_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="inspect_fragment">
+        <zofar:header>
+            XXX_INSPECT_FRAGMENT_HEADER_PLACEHOLDER_XXX
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_INSPECT_FRAGMENT_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_INSPECT_FRAGMENT_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="set_fragment">
+        <zofar:header>
+            XXX_SET_FRAGMENT_HEADER_PLACEHOLDER_XXX
+        </zofar:header>
+        <zofar:body uid="b">
+            XXX_SET_FRAGMENT_BODY_PLACEHOLDER_XXX
+        </zofar:body>
+        <zofar:triggers>
+            XXX_SET_FRAGMENT_TRIGGERS_PLACEHOLDER_XXX
+        </zofar:triggers>
+        <zofar:transitions>
+            <zofar:transition target="set_episode_index" />
+        </zofar:transitions>
+    </zofar:page>
+
+	<zofar:page uid="end">
+        <zofar:header>
+        </zofar:header>
+        <zofar:body uid="b">
+        </zofar:body>
+    </zofar:page>
+
+</zofar:questionnaire>
+

@@ -1,0 +1,62 @@
+version: "2"
+
+services:
+  influxdb:
+    image: influxdb:1.8.4
+    container_name: influxdb
+    restart: unless-stopped
+    # network_mode: 'bridge'
+    ports:
+      - '8086:8086'
+    environment:
+      - INFLUXDB_DB=zofartestsuite
+    volumes:
+      - '/var/lib/influxdb:/var/lib/influxdb'
+
+  chronograf:
+    image: chronograf
+    container_name: chronograf
+    restart: unless-stopped
+    # network_mode: 'bridge'
+    ports:
+      - '8888:8888'
+    environment:
+      - INFLUXDB_URL=http://influxdb:8086
+    volumes:
+      - '/var/lib/chronograf:/var/lib/chronograf'
+    links:
+      - influxdb
+    depends_on:
+      - influxdb
+
+#  connectiontest:
+#    build: .
+#    container_name: zofarcalendartestsuite
+#    command: python3 code/main.py 1.1.1.1
+#    restart: unless-stopped
+#    # network_mode: 'bridge'
+#    volumes:
+#      - .:/code
+#    environment:
+#      - TEST_INTERVAL=1
+#    links:
+#      - influxdb
+#    depends_on:
+#      - influxdb
+#
+#  speedtest:
+#    image: sthuber90/speedtest
+#    container_name: speedtest
+#    restart: unless-stopped
+#    dns:
+#      - 127.0.0.1
+#      - 1.1.1.1
+#    environment:
+#      INFLUXDB_DB: speedtest
+#      TEST_INTERVAL: 1800
+#    links:
+#      - influxdb
+#    depends_on:
+#      - influxdb
+
+

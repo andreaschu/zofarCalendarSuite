@@ -47,10 +47,11 @@ def return_random_string(length: int) -> string:
     return tmp_str
 
 
-def hexencode_and_compress(input_str: str) -> str:
+def compress_and_hexencode(input_str: str) -> str:
     tmp_byteencoded = input_str.encode('utf-8')
-    tmp_hexencoded = tmp_byteencoded.hex()
-    return snappy.compress(tmp_hexencoded)
+    tmp_compressed = snappy.compress(tmp_byteencoded)
+    tmp_hexencoded = tmp_compressed.hex()
+    return tmp_hexencoded
 
 
 def compress(input_str: str) -> str:
