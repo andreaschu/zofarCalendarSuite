@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Optional, Union
 from threading import Thread
 import os
+from influxDBWriter.influxDBWriter import writeDataToInflux
 
 _here = Path(__file__).parent
 
@@ -73,9 +74,17 @@ class TestRun:
         self.number_of_input_fields_to_fill = number_of_input_fields_to_fill
         self.number_of_episodes_to_fill = number_of_episodes_to_fill
 
+        self.number_of_fragment_variables = -1
+        self.number_of_episode_data_text_fields = -1
+        self.average_characters_in_text_fields = -1
+
         self.chromedriver = Path(chromedriver_executable)
         service_object = Service(executable_path=str(self.chromedriver))
         self.driver = Chrome(service=service_object)
+
+    @staticmethod
+    def write_data_to_influx(data: list):
+        writeDataToInflux(database_name='zofartestsuite', host='localhost', port=8086, data_input=data)
 
     def login(self):
         self.driver.get(urllib.parse.urljoin(url_stem, 'special/login.xhtml?zofar_token=' + self.token))
@@ -128,7 +137,12 @@ class TestRun:
                     # generate new data
                     self.set_episode_data()
 
+            # run the test
             self.set_episode_index(0)
+
+            # determine number of text fields and average character count
+            self.determine_number_of_text_fields()
+            self.determine_number_of_fragment_variables()
             for i in range(self.reload_and_save_episode_data_count):
                 self.open_set_episode_data_page_and_click_next()
 
@@ -138,6 +152,32 @@ class TestRun:
 
     def exit(self):
         self.driver.quit()
+
+    def determine_number_of_fragment_variables(self):
+        # determine how many fragment variable text fields are shown
+        set_fragment_data_url = urllib.parse.urljoin(url_stem, 'set_fragment.xhtml')
+        tmp_count, _ = self.count_number_of_input_fields_on_page(set_fragment_data_url)
+        self.number_of_fragment_variables = tmp_count
+
+    def determine_number_of_text_fields(self):
+        # determine how many episde data text fields are shown
+        set_episode_data_url = urllib.parse.urljoin(url_stem, 'set_episode_data.xhtml')
+        self.number_of_episode_data_text_fields, self.average_characters_in_text_fields = \
+            self.count_number_of_input_fields_on_page(set_episode_data_url)
+
+    def count_number_of_input_fields_on_page(self, url: str):
+        # count the number of text fields on a page and determine the average character count per text field
+        self.driver.get(url)
+        tmp_list_of_input_text_elements = self.driver.find_elements(By.CSS_SELECTOR, 'input[type="text"]')
+        tmp_count = len(tmp_list_of_input_text_elements)
+        text_length = 0
+        for element in tmp_list_of_input_text_elements:
+            text_length += len(element.get_attribute('value'))
+        if tmp_count > 0:
+            tmp_average = text_length / tmp_count
+        else:
+            tmp_average = -1
+        return tmp_count, tmp_average
 
     def set_episode_index(self, index: int):
         # open page set_episode_index
@@ -172,11 +212,42 @@ class TestRun:
         tmp_timestamp = time.time()
         tmp_timestamp_str = str(datetime.datetime.fromtimestamp(tmp_timestamp, datetime.timezone.utc))
 
+        no_of_parallel_threads = [thread.is_alive() for thread in thread_list].count(True)
+
         # ToDo: write this into a database
         print(
-            f'Back End: {backend_performance_calc}ms {self.uid=} {tmp_timestamp_str=} no. of alive threads: {[thread.is_alive() for thread in thread_list].count(True)}')
+            f'Back End: {backend_performance_calc}ms {self.uid=} {tmp_timestamp_str=} no. of alive threads: {no_of_parallel_threads}')
         print(
-            f'Front End: {frontend_performance_calc}ms {self.uid=} {tmp_timestamp_str=} no. of alive threads: {[thread.is_alive() for thread in thread_list].count(True)}')
+            f'Front End: {frontend_performance_calc}ms {self.uid=} {tmp_timestamp_str=} no. of alive threads: {no_of_parallel_threads}')
+
+        now_ms = int(time.time() * 1000)
+        data = [
+            {
+                "measurement": "backend_performance",
+                "fields": {
+                    "timing": backend_performance_calc,
+                    "uid": str(self.uid),
+                    "parallel_threads": no_of_parallel_threads,
+                    "average_characters": self.average_characters_in_text_fields,
+                    "input_fields": self.number_of_episode_data_text_fields,
+                    "fragment_variables": self.number_of_fragment_variables
+                },
+                "time": now_ms
+            },
+            {
+                "measurement": "frontend_performance",
+                "fields": {
+                    "timing": frontend_performance_calc,
+                    "uid": str(self.uid),
+                    "parallel_threads": no_of_parallel_threads,
+                    "average_characters": self.average_characters_in_text_fields,
+                    "input_fields": self.number_of_episode_data_text_fields,
+                    "fragment_variables": self.number_of_fragment_variables
+                },
+                "time": now_ms
+            }
+        ]
+        self.write_data_to_influx(data=data)
 
         # send the form
         self.driver.find_element(By.CSS_SELECTOR, '#form\:btPanel\:forward\:forwardBt').click()
@@ -240,7 +311,7 @@ insert_new_data = False
 number_of_episodes = 1
 number_of_input_fields = 0
 zofar_token_list = ['part1', 'part2', 'part3', 'part4', 'part5', 'part6', 'part7', 'part8', 'part9', 'part10']
-zofar_token_list = ['part1', 'part2']
+#zofar_token_list = ['part1']
 
 if __name__ == "__main__":
     thread_list = []
