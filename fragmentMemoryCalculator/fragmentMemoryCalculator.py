@@ -1,9 +1,9 @@
 from abc import ABC
+from abc import ABCMeta
 
 import datetime
 import random
 import string
-from collections import defaultdict
 
 # pip install python-snappy
 import snappy
@@ -11,7 +11,6 @@ import snappy
 # pip install python-lorem
 import lorem
 from dataclasses import dataclass
-import abc
 import math
 import json
 import pprint
@@ -58,15 +57,15 @@ def compress(input_str: str) -> str:
     return snappy.compress(input_str)
 
 
-class FormalZofarQuestionInterface(metaclass=abc.ABCMeta):
+class FormalZofarQuestionInterface(metaclass=ABCMeta):
     @classmethod
     def __subclasshook__(cls, subclass):
         return (hasattr(subclass, 'return_random_ao_json_str') and
                 callable(subclass.return_random_ao_json_str))
 
 
+@FormalZofarQuestionInterface.register()
 @dataclass
-@FormalZofarQuestionInterface.register
 class ZofarQuestion:
     """Superclass for simulating zofar question"""
     list_of_variable_names: list
@@ -301,9 +300,9 @@ class ZofarQuestionCollection:
         print(tmp_details_str)
 
         print(f'{len(raw_output)=} chars')
-        hexencoded_and_compressed = hexencode_and_compress(raw_output)
-        print(f'{len(hexencoded_and_compressed)=}')
-        print(f' would need: {math.ceil(len(hexencoded_and_compressed) / self.chars_per_db_variable)} zofar variables.')
+        compressed_and_hexencoded = compress_and_hexencode(raw_output)
+        print(f'{len(compressed_and_hexencoded)=}')
+        print(f' would need: {math.ceil(len(compressed_and_hexencoded) / self.chars_per_db_variable)} zofar variables.')
         compressed = compress(raw_output)
         print(f'{len(compressed)=}')
         print(f' would need: {math.ceil(len(compressed) / self.chars_per_db_variable)} zofar variables.')

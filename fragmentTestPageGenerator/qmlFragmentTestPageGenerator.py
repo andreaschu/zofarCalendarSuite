@@ -6,14 +6,7 @@ import math
 from pathlib import Path
 import os
 import shutil
-
-here = Path(__file__).parent
-if 'PROJECTFOLDER' in os.environ.keys():
-    target_project_folder = Path(os.getenv('PROJECTFOLDER'), 'src', 'main', 'resources')
-    assert target_project_folder.exists()
-    target_project_xml = Path(target_project_folder, 'questionnaire.xml')
-
-output_directory = Path(here, r'output')
+from tkinter.filedialog import askopenfilename
 
 
 class Question_QML_generator:
@@ -42,17 +35,6 @@ class Question_QML_generator:
         self.varname_stem = varname_stem
         self.list_of_varnames = []
         self.variable_declaration_string = ''
-
-    # def print_question_menu(self, index=None):
-    #     if index is None:
-    #         for i in range(0, len(self.dict_of_question_types)):
-    #             print(str(i+1) + '  ' + self.dict_of_question_types[list(self.dict_of_question_types.keys())[i]])
-    #         tmp_selection_input = input('please enter a number')
-    #         print(tmp_selection_input)
-    #         tmp_selected_question_type = self.valid_question_types[int(tmp_selection_input) - 1]
-    #     else:
-    #         tmp_selected_question_type = self.valid_question_types[int(index) - 1]
-    #         print(tmp_selected_question_type)
 
     def create_question_qml(self) -> None:
         if self.question_type == 'matrixQuestionSingleChoice':
@@ -213,7 +195,7 @@ class Question_QML_JSON_Trigger_generator:
 
     def write_to_qml_file(self):
         # load template
-        tmp_xml_str = Path(r'../template/template_questionnaire.xml').read_text(encoding='utf-8')
+        tmp_xml_str = Path(os.path.abspath('.'), 'template', 'template_questionnaire.xml').read_text(encoding='utf-8')
 
         # create questionOpen for index page (setting of episode_index)
         tmp_question_open_episode_index_str = """
@@ -314,8 +296,6 @@ class Question_QML_JSON_Trigger_generator:
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['inspect_fragment_trigger'],
                                           '<!-- inspect_fragment_trigger -->')
 
-
-
         try:
             assert re.findall(r'XXX_.+?_XXX', tmp_xml_str) == []
         except AssertionError as e:
@@ -326,7 +306,7 @@ class Question_QML_JSON_Trigger_generator:
             print(re.findall(r'XXX_.+?_XXX', tmp_xml_str))
             raise AssertionError(e)
 
-        output_file = Path(r'../output/questionnaire.xml')
+        output_file = Path(os.path.abspath('.'), 'output', 'questionnaire.xml')
         output_file.write_text(data=tmp_xml_str, encoding='utf-8')
 
     def print_variable_declaration_str(self) -> None:
@@ -489,65 +469,74 @@ class Question_QML_JSON_Trigger_generator:
         return tmp_json_function_code_save
 
 
-x = Question_QML_generator('matrixQuestionSingleChoice', varname_stem='v32', index=1)
-x.question_text = """Wie hoch schätzen Sie die Akzeptanz Ihrer Tätigkeit ein?"""
-x.list_of_answer_option_labels = ['Regionalwissenschaften', 'Politikwissenschaften', 'Sozialwissenschaften',
-                                  'Sozialwesen', 'Rechtswissenschaften', 'Verwaltungswissenschaften',
-                                  'Wirtschaftswissenschaften',
-                                  'Wirtschaftsingenieurwesen mit wirtschaftswiss. Schwerpunkt', 'Psychologie',
-                                  'Erziehungswissenschaften', 'Anderes, und zwar']
-x.list_of_answer_option_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-# x.list_of_answer_option_values = [i+1 for i in range(0, len(x.list_of_answer_option_labels))]
-x.list_of_answer_option_uids = ['ao' + str(i + 1) for i in range(0, len(x.list_of_answer_option_labels))]
+def main():
+    if 'PROJECTFOLDER' in os.environ.keys():
+        target_project_folder = Path(os.getenv('PROJECTFOLDER'), 'src', 'main', 'resources')
+        assert target_project_folder.exists()
+        target_project_xml = Path(target_project_folder, 'questionnaire.xml')
 
-x.list_of_missing_answer_option_labels = []
-x.list_of_missing_answer_option_values = []
-x.list_of_missing_answer_option_uids = ['ao' + str(i + 1) for i in range(len(x.list_of_answer_option_labels),
-                                                                         len(x.list_of_missing_answer_option_labels) + len(
-                                                                             x.list_of_answer_option_labels))]
+    else:
+        target_project_xml = askopenfilename(filetypes=[('questionnaire*.xml', 'questionnaire*.xml')])
 
-x.list_of_item_questions = ['seitens der Universitätsleitung', 'seitens der Berufungskommissionen',
-                            'seitens der Berufungskommissionsvorsitzenden', 'seitens der Dekanate/Fakultäten',
-                            'seitens der Fakultätsräte', 'seitens des akademischen Senats', 'seitens des Hochschulrats',
-                            'seitens des zuständigen Ministeriums', 'seitens der Hochschulverwaltung',
-                            'seitens der Bewerber_innen']
+    output_directory = Path(os.path.abspath(r'output'))
 
-# x.print_question_qml()
+    x = Question_QML_generator('matrixQuestionSingleChoice', varname_stem='v32', index=1)
+    x.question_text = """Wie hoch schätzen Sie die Akzeptanz Ihrer Tätigkeit ein?"""
+    x.list_of_answer_option_labels = ['Regionalwissenschaften', 'Politikwissenschaften', 'Sozialwissenschaften',
+                                      'Sozialwesen', 'Rechtswissenschaften', 'Verwaltungswissenschaften',
+                                      'Wirtschaftswissenschaften',
+                                      'Wirtschaftsingenieurwesen mit wirtschaftswiss. Schwerpunkt', 'Psychologie',
+                                      'Erziehungswissenschaften', 'Anderes, und zwar']
+    x.list_of_answer_option_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+    # x.list_of_answer_option_values = [i+1 for i in range(0, len(x.list_of_answer_option_labels))]
+    x.list_of_answer_option_uids = ['ao' + str(i + 1) for i in range(0, len(x.list_of_answer_option_labels))]
 
-y = Question_QML_generator('questionOpen', varname_stem='var001', index=1)
-y.generate_question_open()
-# y.print_question_qml()
+    x.list_of_missing_answer_option_labels = []
+    x.list_of_missing_answer_option_values = []
+    x.list_of_missing_answer_option_uids = ['ao' + str(i + 1) for i in range(len(x.list_of_answer_option_labels),
+                                                                             len(x.list_of_missing_answer_option_labels) + len(
+                                                                                 x.list_of_answer_option_labels))]
 
-# y.print_variable_declaration()
-# x.print_variable_declaration()
+    x.list_of_item_questions = ['seitens der Universitätsleitung', 'seitens der Berufungskommissionen',
+                                'seitens der Berufungskommissionsvorsitzenden', 'seitens der Dekanate/Fakultäten',
+                                'seitens der Fakultätsräte', 'seitens des akademischen Senats',
+                                'seitens des Hochschulrats',
+                                'seitens des zuständigen Ministeriums', 'seitens der Hochschulverwaltung',
+                                'seitens der Bewerber_innen']
 
-list_of_question_generator_objects = []
+    # x.print_question_qml()
 
-open_question_count = 101
+    y = Question_QML_generator('questionOpen', varname_stem='var001', index=1)
+    y.generate_question_open()
+    # y.print_question_qml()
 
-tmp_qml_list = []
+    # y.print_variable_declaration()
+    # x.print_variable_declaration()
 
-trigger_generator = Question_QML_JSON_Trigger_generator(number_of_fragment_variables=200)
+    list_of_question_generator_objects = []
 
-for i in range(open_question_count):
-    count_str = len(str(open_question_count))
-    tmp_varname_stem = 'testvar' + str(i).zfill(count_str)
-    tmp_question_generator_object = Question_QML_generator(question_type='questionOpen',
-                                                           question_text=f'{tmp_varname_stem}: ',
-                                                           varname_stem=tmp_varname_stem,
-                                                           index=i + 1)
-    trigger_generator.add_question_qml_generator(tmp_question_generator_object)
+    open_question_count = 101
 
-# trigger_generator.print_all_qml_code()
+    tmp_qml_list = []
 
-# # trigger_generator.create_list_of_fragment_variables_names()
-# trigger_generator.print_json_load()
-# trigger_generator.print_json_save()
-#
-# trigger_generator.print_variable_declaration_str()
-trigger_generator.write_to_qml_file()
+    trigger_generator = Question_QML_JSON_Trigger_generator(number_of_fragment_variables=200)
 
-if 'PROJECTFOLDER' in os.environ.keys():
-    source_file = Path(here.parent, 'output', 'questionnaire.xml')
-    assert source_file.exists()
-    shutil.copy(source_file, target_project_xml)
+    for i in range(open_question_count):
+        count_str = len(str(open_question_count))
+        tmp_varname_stem = 'testvar' + str(i).zfill(count_str)
+        tmp_question_generator_object = Question_QML_generator(question_type='questionOpen',
+                                                               question_text=f'{tmp_varname_stem}: ',
+                                                               varname_stem=tmp_varname_stem,
+                                                               index=i + 1)
+        trigger_generator.add_question_qml_generator(tmp_question_generator_object)
+
+    trigger_generator.write_to_qml_file()
+
+    if 'PROJECTFOLDER' in os.environ.keys():
+        source_file = Path(os.path.abspath('output'), 'questionnaire.xml')
+        assert source_file.exists()
+        shutil.copy(source_file, target_project_xml)
+
+
+if __name__ == '__main__':
+    main()
