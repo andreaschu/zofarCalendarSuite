@@ -64,7 +64,7 @@ class FormalZofarQuestionInterface(metaclass=ABCMeta):
                 callable(subclass.return_random_ao_json_str))
 
 
-@FormalZofarQuestionInterface.register()
+@FormalZofarQuestionInterface.register
 @dataclass
 class ZofarQuestion:
     """Superclass for simulating zofar question"""
@@ -241,12 +241,6 @@ class Timestamp:
         output = self.min_date + random_diff
         return output.strftime("%Y-%m-%dT%H-%M-%SZ")
 
-
-a = Timestamp(min_date=datetime.date(year=2018, month=2, day=23),
-              max_date=datetime.date(year=2028, month=12, day=31))
-a.return_random_timestamp_inbetween()
-
-
 class ZofarQuestionCollection:
     def __init__(self, numer_of_episodes: int = 1, chars_per_db_variable: int = 1500):
         self.list_of_zofar_questions = []
@@ -308,90 +302,76 @@ class ZofarQuestionCollection:
         print(f' would need: {math.ceil(len(compressed) / self.chars_per_db_variable)} zofar variables.')
 
 
-# instantiate a new ZofarQuestionCollection object, set number of episodes
-y = ZofarQuestionCollection(numer_of_episodes=20)
+def main():
+    a = Timestamp(min_date=datetime.date(year=2018, month=2, day=23),
+                  max_date=datetime.date(year=2028, month=12, day=31))
+    a.return_random_timestamp_inbetween()
 
-# initiate variable_counter (for consecutive naming/numbering of variables
-variable_counter = 0
 
-# set number of questionSingleChoice
-no_of_sc_questions = 5
-# set number of answer options per questionSingleChoice
-no_of_sc_aos = 7
-# create a list of variable names
-list_of_variable_names = ['var' + str(i + variable_counter) for i in range(no_of_sc_questions)]
-# update variable counter (for next section)
-variable_counter += len(list_of_variable_names)
-for variable_name in list_of_variable_names:
-    # add question to ZofarQuestionCollection object
-    y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=no_of_sc_aos,
-                                                    list_of_variable_names=[variable_name]))
 
-# set number of questionMultipleChoice
-no_of_mc_questions = 5
-# set number of answer options/variables per questoin
-no_of_mc_vars = 3
-# create a list of variable names
-list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
-                          k in range(no_of_mc_questions)]
-# update variable counter (for next section)
-variable_counter += no_of_mc_questions * no_of_mc_vars
-for variable_names_list in list_of_variable_names:
-    # add question to ZofarQuestionCollection object
-    y.add_question_object(ZofarQuestionMultipleChoice(list_of_variable_names=variable_names_list))
 
-# set number of questionMultipleChoiceMatrix
-no_of_mc_matrix_questions = 2
-# set number of aos/items (columns)
-no_of_mc_matrix_aos = 5
-# create a list of variable names
-list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
-                          k in range(no_of_mc_questions)]
-# update variable counter (for next section)
-variable_counter += len(list_of_variable_names)
-for variable_names_list in list_of_variable_names:
-    # add question to ZofarQuestionCollection object
-    y.add_question_object(ZofarQuestionMultipleChoiceMatrix(no_of_answer_options=no_of_mc_matrix_aos,
-                                                            list_of_variable_names=variable_names_list))
 
-# set number of questionOpen
-no_of_question_open = 6
-length_of_text_fields = 2000
-random_characters = False
-# create a list of variable names
-list_of_variable_names = ['var' + str(i + variable_counter) for i in range(10, 16)]
-# update variable counter (for next section)
-variable_counter += len(list_of_variable_names)
-for variable_name in list_of_variable_names:
-    # add question to ZofarQuestionCollection object
-    y.add_question_object(ZofarQuestionOpen(list_of_variable_names=[variable_name],
-                                            random_characters=random_characters))
+    # instantiate a new ZofarQuestionCollection object, set number of episodes
+    y = ZofarQuestionCollection(numer_of_episodes=20)
 
-y.print_statistics()
+    # initiate variable_counter (for consecutive naming/numbering of variables
+    variable_counter = 0
 
-print('###')
+    # set number of questionSingleChoice
+    no_of_sc_questions = 5
+    # set number of answer options per questionSingleChoice
+    no_of_sc_aos = 7
+    # create a list of variable names
+    list_of_variable_names = ['var' + str(i + variable_counter) for i in range(no_of_sc_questions)]
+    # update variable counter (for next section)
+    variable_counter += len(list_of_variable_names)
+    for variable_name in list_of_variable_names:
+        # add question to ZofarQuestionCollection object
+        y.add_question_object(ZofarQuestionSingleChoice(no_of_answer_options=no_of_sc_aos,
+                                                        list_of_variable_names=[variable_name]))
 
-if False:
-    s = 'bc02685b7b226964223a302c227374617465223a226e6577222c22747970010d10536c6f74320d0f2c436f6c6f72223a2272656422052f08727444093374323032302d30332d30315430313a30303a30302e3030305a222c22656e64192518332d30322d32384225004473665f7661613031223a66616c73657d2c7b111300350d13002c05a600310577fea600fea60011a6005d'
-    b = bytes.fromhex(s)
+    # set number of questionMultipleChoice
+    no_of_mc_questions = 5
+    # set number of answer options/variables per questoin
+    no_of_mc_vars = 3
+    # create a list of variable names
+    list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
+                              k in range(no_of_mc_questions)]
+    # update variable counter (for next section)
+    variable_counter += no_of_mc_questions * no_of_mc_vars
+    for variable_names_list in list_of_variable_names:
+        # add question to ZofarQuestionCollection object
+        y.add_question_object(ZofarQuestionMultipleChoice(list_of_variable_names=variable_names_list))
 
-    t = snappy.decompress(b)
-    r = t.decode('utf-8')
-    print(r)
+    # set number of questionMultipleChoiceMatrix
+    no_of_mc_matrix_questions = 2
+    # set number of aos/items (columns)
+    no_of_mc_matrix_aos = 5
+    # create a list of variable names
+    list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
+                              k in range(no_of_mc_questions)]
+    # update variable counter (for next section)
+    variable_counter += len(list_of_variable_names)
+    for variable_names_list in list_of_variable_names:
+        # add question to ZofarQuestionCollection object
+        y.add_question_object(ZofarQuestionMultipleChoiceMatrix(no_of_answer_options=no_of_mc_matrix_aos,
+                                                                list_of_variable_names=variable_names_list))
 
-    test_dict = create_test_dict(number_of_keys=100, val_length=2000)
+    # set number of questionOpen
+    no_of_question_open = 6
+    length_of_text_fields = 2000
+    random_characters = False
+    # create a list of variable names
+    list_of_variable_names = ['var' + str(i + variable_counter) for i in range(10, 16)]
+    # update variable counter (for next section)
+    variable_counter += len(list_of_variable_names)
+    for variable_name in list_of_variable_names:
+        # add question to ZofarQuestionCollection object
+        y.add_question_object(ZofarQuestionOpen(list_of_variable_names=[variable_name],
+                                                random_characters=random_characters))
 
-    print(len(str(test_dict)))
+    y.print_statistics()
 
-    x = hexencode_and_compress(str(test_dict))
-    print(len(x))
-    y = compress(str(test_dict))
-    print(len(y))
-    print()
 
-    print(f'{len(r*1000)=}')
-    z1 = hexencode_and_compress(input_str=r * 1000)
-    z2 = compress(input_str=r * 1000)
-    print(f'{len(z1)=}')
-    print(f'{len(z2)=}')
-    print()
+if __name__ == '__main__':
+    main()
