@@ -9,6 +9,14 @@ from os import path
 from fragmentMemoryCalculator.fragmentMemoryCalculator import compress_and_hexencode
 import math
 
+from functools import reduce
+from operator import concat
+
+
+def flatten(input_list: any):
+    return reduce(concat, input_list)
+
+
 TYPES = ['Slot1', 'Slot2', 'Slot3', 'Slot4', 'Slot5', 'Slot6', 'Slot7', 'Slot8', 'Slot9', 'Slot10']
 FLAGS = ['startHO', 'endHO', 'startIDK', 'endIDK', 'FLAG01', 'FLAG02', 'FLAG03', 'FLAG04']
 
@@ -51,30 +59,30 @@ def create_blindtext(str_length: int) -> str:
     return blindtext
 
 
-def random_single_choice_var_dict(k: int, var_name_stem: str = 'scvarstem'):
-    return {var_name_stem + str(i): 'ao' + str(random.choice(range(10))) for i in range(k)}
+def random_single_choice_var_dict(k: int, sc_var_name_stem: str = 'scvarstem', **kwargs):
+    return {sc_var_name_stem + str(i): 'ao' + str(random.choice(range(10))) for i in range(k)}
 
 
-def random_multiple_choice_var_dict(k: int, var_name_stem: str = 'mcvarstem'):
-    return {var_name_stem + str(i): random.choice(['True', 'False']) for i in range(k)}
+def random_multiple_choice_var_dict(k: int, mc_var_name_stem: str = 'mcvarstem', **kwargs):
+    return {mc_var_name_stem + str(i): random.choice(['True', 'False']) for i in range(k)}
 
 
-def random_open_question_var_dict(k: int, qo_str_length: int = 30, var_name_stem: str = 'qovarstem'):
-    return {var_name_stem + str(i): create_blindtext(str_length=qo_str_length) for i in range(k)}
+def random_open_question_var_dict(k: int, qo_str_length: int = 30, qo_var_name_stem: str = 'qovarstem', **kwargs):
+    return {qo_var_name_stem + str(i): create_blindtext(str_length=qo_str_length) for i in range(k)}
 
 
-def add_random_episode_to_dict(input_list: list,
-                               sc_count: int = 10,
-                               mc_count: int = 10,
-                               qo_count: int = 10,
-                               qo_str_len: int = 30):
+def add_random_episode_to_list(input_list: list,
+                               sc_count: int = 0,
+                               mc_count: int = 0,
+                               qo_count: int = 0,
+                               qo_str_len: int = 30, **kwargs):
     episode = create_random_episode()
     episode['index'] = len(input_list)
     episode['type'] = random.choice(TYPES)
     flags = random.sample(FLAGS, random.choice(range(len(FLAGS))))
     if flags != []:
         episode['flags'] = flags
-    episode.update(random_single_choice_var_dict(k=sc_count))
+    episode.update(random_single_choice_var_dict(k=sc_count, **kwargs))
     episode.update(random_multiple_choice_var_dict(k=mc_count))
     episode.update(random_open_question_var_dict(k=qo_count, qo_str_length=qo_str_len))
     input_list.append(episode)
@@ -84,7 +92,7 @@ def add_random_episode_to_dict(input_list: list,
 def create_array_of_dicts_max_json_length(json_str_len: int = 10000, **kwargs) -> list:
     array_of_dicts = []
     while len(json.dumps(array_of_dicts)) < json_str_len:
-        add_random_episode_to_dict(input_list=array_of_dicts, **kwargs)
+        add_random_episode_to_list(input_list=array_of_dicts, **kwargs)
     return array_of_dicts
 
 
@@ -92,16 +100,52 @@ def create_array_of_dicts_max_fragment_var_count(fragment_var_count: int = 150,
                                                  str_len_per_frag_var: int = 1500,
                                                  **kwargs) -> list:
     array_of_dicts = []
-    while math.ceil(len(compress_and_hexencode(json.dumps(array_of_dicts)))/str_len_per_frag_var) < fragment_var_count:
-        add_random_episode_to_dict(input_list=array_of_dicts, **kwargs)
+    while math.ceil(
+            len(compress_and_hexencode(json.dumps(array_of_dicts))) / str_len_per_frag_var) < fragment_var_count:
+        add_random_episode_to_list(input_list=array_of_dicts, **kwargs)
     return array_of_dicts
 
 
-def main():
-    x = create_array_of_dicts_max_json_length(json_str_len=10000)
-    y = create_array_of_dicts_max_fragment_var_count(fragment_var_count=150)
-    print()
+def create_module(episode_count: int, **kwargs) -> list:
+    return flatten([add_random_episode_to_list(input_list=[], **kwargs, index=i) for i in range(episode_count)])
 
+
+def main():
+    # x = create_array_of_dicts_max_json_length(json_str_len=10000)
+    # y = create_array_of_dicts_max_fragment_var_count(fragment_var_count=150)
+
+    whole_json_array = []
+    nset_modul = create_module(episode_count=3,
+                               sc_var_name_stem="sc_nset",
+                               sc_count=5,
+                               mc_var_name_stem="mc_nset",
+                               mc_count=3,
+                               qo_var_name_stem="qo_nset",
+                               qo_count=3,
+                               qo_str_len=40)
+    whole_json_array += nset_modul
+
+    stud_modul = create_module(episode_count=5,
+                               sc_var_name_stem="sc_stud",
+                               sc_count=2,
+                               mc_var_name_stem="mc_stud",
+                               mc_count=4,
+                               qo_var_name_stem="qo_stud",
+                               qo_count=1,
+                               qo_str_len=40)
+    whole_json_array += stud_modul
+
+    other_module = create_module(episode_count=2,
+                                 sc_var_name_stem="sc_other",
+                                 sc_count=7,
+                                 mc_var_name_stem="mc_other",
+                                 mc_count=1,
+                                 qo_var_name_stem="qo_other",
+                                 qo_count=8,
+                                 qo_str_len=40)
+    whole_json_array += other_module
+
+    print()
 
 if __name__ == "__main__":
     main()

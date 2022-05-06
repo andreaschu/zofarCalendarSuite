@@ -31,5 +31,3 @@ C:\Users\friedrich\Downloads\curl-7.83.0-win64-mingw\bin\curl.exe -G "${URL}/j_s
 rm  "cookie_localhost_8081_calendar_lab_-_part5.txt"
 
 
-
-
