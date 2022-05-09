@@ -8,19 +8,22 @@ from pathlib import Path
 from os import path
 from fragmentMemoryCalculator.fragmentMemoryCalculator import compress_and_hexencode
 import math
+import string
 
 from functools import reduce
 from operator import concat
 
 
 def flatten(input_list: any):
-    return reduce(concat, input_list)
+    return list(reduce(concat, input_list))
 
 
 TYPES = ['Slot1', 'Slot2', 'Slot3', 'Slot4', 'Slot5', 'Slot6', 'Slot7', 'Slot8', 'Slot9', 'Slot10']
+TYPE_COLORS = ['blue', 'red', 'orange', 'yellow', 'black', 'green', 'violet', 'grey']
+STATES = ['new', 'done', 'modified']
 FLAGS = ['startHO', 'endHO', 'startIDK', 'endIDK', 'FLAG01', 'FLAG02', 'FLAG03', 'FLAG04']
 
-BLINDTEXT = Path(path.abspath('.'), 'data', 'blindtext01.txt').read_text(encoding='utf-8').split(' ')
+BLIND_TEXT = Path(path.abspath('.'), 'data', 'blindtext01.txt').read_text(encoding='utf-8').split(' ')
 
 
 def random_date(n: int = 1):
@@ -55,7 +58,7 @@ def create_blindtext(str_length: int) -> str:
     blindtext = ""
 
     while len(blindtext) < str_length:
-        blindtext += ' ' + ' '.join(random.sample(BLINDTEXT, 3))
+        blindtext += ' ' + ' '.join(random.sample(BLIND_TEXT, 3))
     return blindtext
 
 
@@ -67,24 +70,35 @@ def random_multiple_choice_var_dict(k: int, mc_var_name_stem: str = 'mcvarstem',
     return {mc_var_name_stem + str(i): random.choice(['True', 'False']) for i in range(k)}
 
 
-def random_open_question_var_dict(k: int, qo_str_length: int = 30, qo_var_name_stem: str = 'qovarstem', **kwargs):
-    return {qo_var_name_stem + str(i): create_blindtext(str_length=qo_str_length) for i in range(k)}
+def random_open_question_var_dict(k: int,
+                                  qo_str_length: int = 30,
+                                  qo_var_name_stem: str = 'qovarstem',
+                                  qo_random: bool = False,
+                                  **kwargs):
+    if qo_random:
+        return {qo_var_name_stem + str(i): ''.join([random.choice(string.printable) for i in range(qo_str_length)]) for i in range(k)}
+    else:
+        return {qo_var_name_stem + str(i): create_blindtext(str_length=qo_str_length) for i in range(k)}
 
 
 def add_random_episode_to_list(input_list: list,
                                sc_count: int = 0,
                                mc_count: int = 0,
                                qo_count: int = 0,
-                               qo_str_len: int = 30, **kwargs):
+                               qo_str_len: int = 30,
+                               qo_random: bool = False,
+                               **kwargs):
     episode = create_random_episode()
     episode['index'] = len(input_list)
     episode['type'] = random.choice(TYPES)
+    episode['state'] = random.choice(STATES)
+    episode['typeColor'] = random.choice(TYPE_COLORS)
     flags = random.sample(FLAGS, random.choice(range(len(FLAGS))))
     if flags != []:
         episode['flags'] = flags
     episode.update(random_single_choice_var_dict(k=sc_count, **kwargs))
     episode.update(random_multiple_choice_var_dict(k=mc_count))
-    episode.update(random_open_question_var_dict(k=qo_count, qo_str_length=qo_str_len))
+    episode.update(random_open_question_var_dict(k=qo_count, qo_str_length=qo_str_len, qo_random=qo_random))
     input_list.append(episode)
     return input_list
 
@@ -142,7 +156,8 @@ def main():
                                  mc_count=1,
                                  qo_var_name_stem="qo_other",
                                  qo_count=8,
-                                 qo_str_len=40)
+                                 qo_str_len=40,
+                                 qo_random=True)
     whole_json_array += other_module
 
     print()

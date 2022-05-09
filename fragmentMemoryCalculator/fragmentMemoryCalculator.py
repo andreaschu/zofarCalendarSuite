@@ -1,6 +1,6 @@
 from abc import ABC
 from abc import ABCMeta
-
+from typing import Union
 import datetime
 import random
 import string
@@ -47,14 +47,22 @@ def return_random_string(length: int) -> string:
 
 
 def compress_and_hexencode(input_str: str) -> str:
-    tmp_byteencoded = input_str.encode('utf-8')
-    tmp_compressed = snappy.compress(tmp_byteencoded)
-    tmp_hexencoded = tmp_compressed.hex()
-    return tmp_hexencoded
+    return hexencode_bytes(compress(input_str))
+
+
+def hexencode_and_compress(input_str: str) -> str:
+    return compress(hexencode_str(input_str))
+
+
+def hexencode_str(input_str: str) -> str:
+    return hexencode_bytes(input_str.encode('utf-8'))
+
+def hexencode_bytes(input_str: bytes) -> str:
+    return input_str.hex()
 
 
 def compress(input_str: str) -> str:
-    return snappy.compress(input_str)
+    return snappy.compress(input_str.encode('utf-8'))
 
 
 class FormalZofarQuestionInterface(metaclass=ABCMeta):
@@ -241,6 +249,7 @@ class Timestamp:
         output = self.min_date + random_diff
         return output.strftime("%Y-%m-%dT%H-%M-%SZ")
 
+
 class ZofarQuestionCollection:
     def __init__(self, numer_of_episodes: int = 1, chars_per_db_variable: int = 1500):
         self.list_of_zofar_questions = []
@@ -307,10 +316,6 @@ def main():
                   max_date=datetime.date(year=2028, month=12, day=31))
     a.return_random_timestamp_inbetween()
 
-
-
-
-
     # instantiate a new ZofarQuestionCollection object, set number of episodes
     y = ZofarQuestionCollection(numer_of_episodes=20)
 
@@ -335,7 +340,8 @@ def main():
     # set number of answer options/variables per questoin
     no_of_mc_vars = 3
     # create a list of variable names
-    list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
+    list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)]
+                              for
                               k in range(no_of_mc_questions)]
     # update variable counter (for next section)
     variable_counter += no_of_mc_questions * no_of_mc_vars
@@ -348,7 +354,8 @@ def main():
     # set number of aos/items (columns)
     no_of_mc_matrix_aos = 5
     # create a list of variable names
-    list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)] for
+    list_of_variable_names = [['var' + str(j + (no_of_mc_vars * k) + variable_counter) for j in range(0, no_of_mc_vars)]
+                              for
                               k in range(no_of_mc_questions)]
     # update variable counter (for next section)
     variable_counter += len(list_of_variable_names)
