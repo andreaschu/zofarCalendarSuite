@@ -12,8 +12,8 @@ VAR_TYPES = ['string', 'enum', 'boolean']
 CHARS_PER_FRAGMENT_VARIABLE = 1500
 
 EPISODE_COUNTS_PER_MODULE = {
-    'va': 50,
-    'vc': 2
+    'va': 10,
+    'vc': 5
 }
 
 
@@ -52,9 +52,7 @@ def main():
     for module_abbr, json_attr_dict in all_modules_var_dict.items():
         module_var_counts = defaultdict(int)
 
-        qo_count, sc_count, mc_count = 0, 0, 0
         for json_attr_name, json_attr_ref in json_attr_dict.items():
-            length_and_size_dict = {}
             if json_attr_name in ['id', 'startDate', 'endDate', 'type', 'typeColor']:
                 continue
 
@@ -108,9 +106,9 @@ def main():
 
     print('\n\n' + '#' * 100 + '\n\nwhole JSON array string length:\n')
     pprint.pprint(results)
-    print('\n\n' + '#' * 100 + '\n\nfragment variables needed:\n')
+    print('\n\n' + '#' * 100 + f'\n\nfragment variables needed {CHARS_PER_FRAGMENT_VARIABLE} chars per fragment var:\n')
     pprint.pprint(results_fragment)
-    # breakpoint()
+    breakpoint()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,4 @@
-from dataclasses import dataclass
 import datetime
-from typing import Optional, Union
 import json
 import random
 from dateutil.relativedelta import relativedelta
@@ -30,7 +28,7 @@ def random_date(n: int = 1):
     return [datetime.datetime(year=random.choice(range(50)) + 1980,
                               month=random.choice(range(12)) + 1,
                               day=1,
-                              hour=1) for i in range(n)]
+                              hour=1) for _ in range(n)]
 
 
 def random_date_pair():
@@ -45,13 +43,13 @@ def as_zofar_datetime_str(timestamp_tuple: tuple):
     return tuple([ts.strftime(format='%Y-%m-%dT01-00-00.000Z') for ts in timestamp_tuple])
 
 
-def create_episode(start_date: datetime.date, end_date: datetime.date, *args, **kwargs):
+def create_episode(start_date: datetime.date, end_date: datetime.date):
     return {"startDate": start_date, "endDate": end_date}
 
 
-def create_random_episode(*args, **kwargs):
+def create_random_episode():
     start_date, end_date = as_zofar_datetime_str(random_date_pair())
-    return create_episode(start_date=start_date, end_date=end_date, *args, **kwargs)
+    return create_episode(start_date=start_date, end_date=end_date)
 
 
 def create_blindtext(str_length: int) -> str:
@@ -62,21 +60,24 @@ def create_blindtext(str_length: int) -> str:
     return blindtext
 
 
-def random_single_choice_var_dict(k: int, sc_var_name_stem: str = 'scvarstem', **kwargs):
+def random_single_choice_var_dict(k: int, sc_var_name_stem: str = 'scvarstem'):
     return {sc_var_name_stem + str(i): 'ao' + str(random.choice(range(10))) for i in range(k)}
 
 
-def random_multiple_choice_var_dict(k: int, mc_var_name_stem: str = 'mcvarstem', **kwargs):
+def random_multiple_choice_var_dict(k: int, mc_var_name_stem: str = 'mcvarstem'):
     return {mc_var_name_stem + str(i): random.choice(['True', 'False']) for i in range(k)}
 
 
 def random_open_question_var_dict(k: int,
                                   qo_str_length: int = 30,
                                   qo_var_name_stem: str = 'qovarstem',
-                                  qo_random: bool = False,
-                                  **kwargs):
+                                  qo_random: bool = False):
     if qo_random:
-        return {qo_var_name_stem + str(i): ''.join([random.choice(string.printable) for i in range(qo_str_length)]) for i in range(k)}
+        # noinspection PyUnusedLocal
+        # return {qo_var_name_stem + str(i): ''.join([random.choice(string.printable) for i in range(qo_str_length)]) for
+        #         i in range(k)}
+        return {qo_var_name_stem + str(i): ''.join([random.choice(string.ascii_letters+string.digits+string.punctuation+string.whitespace) for i in range(qo_str_length)]) for
+                i in range(k)}
     else:
         return {qo_var_name_stem + str(i): create_blindtext(str_length=qo_str_length) for i in range(k)}
 
@@ -94,9 +95,10 @@ def add_random_episode_to_list(input_list: list,
     episode['state'] = random.choice(STATES)
     episode['typeColor'] = random.choice(TYPE_COLORS)
     flags = random.sample(FLAGS, random.choice(range(len(FLAGS))))
+    # noinspection PySimplifyBooleanCheck
     if flags != []:
         episode['flags'] = flags
-    episode.update(random_single_choice_var_dict(k=sc_count, **kwargs))
+    episode.update(random_single_choice_var_dict(k=sc_count))
     episode.update(random_multiple_choice_var_dict(k=mc_count))
     episode.update(random_open_question_var_dict(k=qo_count, qo_str_length=qo_str_len, qo_random=qo_random))
     input_list.append(episode)
@@ -161,6 +163,7 @@ def main():
     whole_json_array += other_module
 
     print()
+
 
 if __name__ == "__main__":
     main()

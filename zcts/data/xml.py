@@ -31,7 +31,12 @@ class Variable(_VariableBase):
 
 
 @dataclass
-class VarRef:
+class _VarRefBase:
+    pass
+
+
+@dataclass
+class VarRef(_VarRefBase):
     variable: Variable
     # list of conditions (as spring expression) that have to be fulfilled in order to reach the variable reference
     condition: List[str] = field(default_factory=list)
@@ -48,7 +53,7 @@ class JsonAttr(_JsonAttrString, _VariableBase):
 
 
 @dataclass
-class JsonAttrRef:
+class JsonAttrRef(_VarRefBase):
     variable: JsonAttr
     value: str
 
@@ -57,8 +62,8 @@ class JsonAttrRef:
 class Page:
     uid: str
     transitions: List[Transition]
-    var_refs: List[VarRef]
-    json_attr: List[JsonAttrRef]
+    var_refs: List[_VarRefBase]
+    json_attr: List[_VarRefBase]
 
 
 @dataclass
