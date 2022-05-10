@@ -5,7 +5,7 @@ from typing import Dict, Union, Tuple, List
 from collections import defaultdict
 from zcts.caljson.util import create_module
 from zcts.data.util import hexencode_and_compress, compress_and_hexencode, \
-    hexencode_str, compress
+    hexencode_str, compress, hexdecode_and_decompress
 import math
 from pathlib import Path
 
@@ -13,9 +13,9 @@ VAR_TYPES = ['string', 'enum', 'boolean']
 CHARS_PER_FRAGMENT_VARIABLE = 1500
 
 EPISODE_COUNTS_PER_MODULE = {
-    'va': 10,
+    'va': 1,
     'pl': 1,
-    'ns': 1
+    'ns': 10
 }
 
 
@@ -107,6 +107,7 @@ def gen_trigger_dict(input_xml: Union[str, Path], page_name_startswith: str) -> 
 def calculate_size(input_xml: str):
     q, all_modules_var_dict = prepare_modules(input_xml)
 
+    details_string_list = []
     all_modules_var_count = {}
 
     for module_abbr, json_attr_dict in all_modules_var_dict.items():
@@ -133,7 +134,13 @@ def calculate_size(input_xml: str):
             else:
                 raise TypeError(f'Wrong type: {type(json_attr_ref)}')
 
+        details_string_list.append({'module': module_abbr,
+                                    'pages': [page.uid for page in q.pages if page.uid.startswith(module_abbr)],
+                                    'variables': [(var.name, var.type) for var in all_modules_var_dict[module_abbr].values()],
+                                    'variable_counts': module_var_counts})
+
         all_modules_var_count[module_abbr] = module_var_counts
+    pprint.pprint(details_string_list)
 
     episode_counter_dict = {module_abbr: 0 for module_abbr in all_modules_var_dict.keys()}
     episode_counter_dict.update(EPISODE_COUNTS_PER_MODULE)
@@ -174,7 +181,6 @@ def calculate_size(input_xml: str):
 
 def gen_trigger_str(trigger_dict: Dict[str, Dict[str, list]], fragment_list: List[str]) -> str:
     output_str = "<!-- TRIGGER -->\n\n"
-
 
     for page_name, trigger in trigger_dict.items():
         output_str += f"""\t<!-- page {page_name} -->\n\n"""
