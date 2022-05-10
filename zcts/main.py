@@ -1,22 +1,22 @@
 import json
+import os.path
 import pprint
+import time
+import matplotlib.pyplot as plt
+
 from zcts.data.xml import read_questionnaire, VarRef, JsonAttrRef, Variable, JsonAttr, Questionnaire
 from typing import Dict, Union, Tuple, List
 from collections import defaultdict
 from zcts.caljson.util import create_module
-from zcts.data.util import hexencode_and_compress, compress_and_hexencode, \
-    hexencode_str, compress, hexdecode_and_decompress
+from zcts.data.util import compress_and_hexencode
+from zcts.util import timestamp
 import math
 from pathlib import Path
 
 VAR_TYPES = ['string', 'enum', 'boolean']
 CHARS_PER_FRAGMENT_VARIABLE = 1500
 
-EPISODE_COUNTS_PER_MODULE = {
-    'va': 1,
-    'pl': 1,
-    'ns': 10
-}
+EPISODE_COUNTS_PER_MODULE = {'ns': 200, 'pl': 50, 'va': 10}
 
 
 def split_by_first_page_letters(n: int, pages_dict: Dict[str, Union[VarRef, JsonAttrRef]]) -> dict:
@@ -104,7 +104,10 @@ def gen_trigger_dict(input_xml: Union[str, Path], page_name_startswith: str) -> 
     return trigger_dict
 
 
-def calculate_size(input_xml: str):
+def calculate_size(input_xml: str,
+                   counts_dict: dict,
+                   qo_str_length: int = 2000,
+                   qo_random: bool = True) -> dict:
     q, all_modules_var_dict = prepare_modules(input_xml)
 
     details_string_list = []
@@ -134,23 +137,36 @@ def calculate_size(input_xml: str):
             else:
                 raise TypeError(f'Wrong type: {type(json_attr_ref)}')
 
-        details_string_list.append({'module': module_abbr,
-                                    'pages': [page.uid for page in q.pages if page.uid.startswith(module_abbr)],
-                                    'variables': [(var.name, var.type) for var in all_modules_var_dict[module_abbr].values()],
-                                    'variable_counts': module_var_counts})
+        details_string_list.append(pprint.pformat({'module': module_abbr,
+                                                   'pages': [page.uid for page in q.pages if
+                                                             page.uid.startswith(module_abbr)],
+                                                   'variables': [(var.name, var.type) for var in
+                                                                 all_modules_var_dict[module_abbr].values()],
+                                                   'variable_counts': module_var_counts}, indent=4))
 
         all_modules_var_count[module_abbr] = module_var_counts
-    pprint.pprint(details_string_list)
+    # pprint.pprint(details_string_list)
 
     episode_counter_dict = {module_abbr: 0 for module_abbr in all_modules_var_dict.keys()}
-    episode_counter_dict.update(EPISODE_COUNTS_PER_MODULE)
+
+    episode_counter_dict.update(counts_dict)
+
+    if not all([(module_abbr in all_modules_var_dict.keys()) for module_abbr in counts_dict]):
+        mask = [(module_abbr in all_modules_var_dict.keys()) for module_abbr in counts_dict]
+        not_found = [list(counts_dict.keys())[i] for i in range(len(mask)) if not mask[i]]
+        raise ValueError(f'Module abbreviations {not_found} cannot be found in QML.')
+
+    if not all([(module_abbr in counts_dict.keys()) for module_abbr in all_modules_var_dict.keys()]):
+        mask = [(module_abbr in counts_dict.keys()) for module_abbr in all_modules_var_dict.keys()]
+        not_found = [list(all_modules_var_dict.keys())[i] for i in range(len(mask)) if not mask[i]]
+        for module_abbr in not_found:
+            episode_counter_dict[module_abbr] = int(
+                input(f'number of loops (episode count) in module "{module_abbr}": '))
+        # raise ValueError(f'Module abbreviations {not_found} not found in counts_dict.')
 
     if min(episode_counter_dict.values()) == 0:
-        raise ValueError(f'Module "{[key for key, val in episode_counter_dict.items() if val == 0]}" has length 0.')
-    if not all([(module_abbr in all_modules_var_dict.keys()) for module_abbr in EPISODE_COUNTS_PER_MODULE]):
-        mask = [(module_abbr in all_modules_var_dict.keys()) for module_abbr in EPISODE_COUNTS_PER_MODULE]
-        not_found = [list(EPISODE_COUNTS_PER_MODULE.keys())[i] for i in range(len(mask)) if not mask[i]]
-        raise ValueError(f'Module abbreviations {not_found} cannot be found.')
+        # raise ValueError(f'Module "{[key for key, val in episode_counter_dict.items() if val == 0]}" has length 0.')
+        print(f'Module "{[key for key, val in episode_counter_dict.items() if val == 0]}" has length 0.')
 
     whole_json_array = []
     for module_name_abbr, module_count in episode_counter_dict.items():
@@ -161,22 +177,47 @@ def calculate_size(input_xml: str):
                                           mc_count=all_modules_var_count[module_name_abbr]['mc_count'],
                                           qo_var_name_stem=f'qo_{module_name_abbr}',
                                           qo_count=all_modules_var_count[module_name_abbr]['qo_count'],
-                                          qo_str_len=2000,
-                                          qo_random=True)
+                                          qo_str_len=qo_str_length,
+                                          qo_random=qo_random)
 
     results = {
         'whole_json_length': len(json.dumps(whole_json_array)),
-        'whole_json_length_compressed': len(compress(json.dumps(whole_json_array))),
-        'whole_json_length_hexencoded': len(hexencode_str(json.dumps(whole_json_array))),
-        'whole_json_length_hexencoded_and_compressed': len(hexencode_and_compress(json.dumps(whole_json_array))),
+        # 'whole_json_length_compressed': len(compress(json.dumps(whole_json_array))),
+        # 'whole_json_length_hexencoded': len(hexencode_str(json.dumps(whole_json_array))),
+        # 'whole_json_length_hexencoded_and_compressed': len(hexencode_and_compress(json.dumps(whole_json_array))),
         'whole_json_length_compressed_and_hexencoded': len(compress_and_hexencode(json.dumps(whole_json_array)))}
 
     results_fragment = {key: math.ceil(val / CHARS_PER_FRAGMENT_VARIABLE) for key, val in results.items()}
 
-    print('\n\n' + '#' * 100 + '\n\nwhole JSON array string length:\n')
-    pprint.pprint(results)
-    print('\n\n' + '#' * 100 + f'\n\nfragment variables needed {CHARS_PER_FRAGMENT_VARIABLE} chars per fragment var:\n')
-    pprint.pprint(results_fragment)
+    tmp_dict = {'length': results.copy(),
+                'length_frag': results_fragment.copy(),
+                'episode_count': episode_counter_dict,
+                'random': qo_random,
+                'all_modules_var_count': all_modules_var_count,
+                'qo_length': qo_str_length,
+                'variables': {}}
+
+    for module_abbr, json_attr_dict in all_modules_var_dict.items():
+        tmp_dict['variables'][module_abbr] = {'module': module_abbr,
+                                              'pages': [page.uid for page in q.pages if
+                                                        page.uid.startswith(module_abbr)],
+                                              'variables': [(var.name, var.type) for var in
+                                                            all_modules_var_dict[module_abbr].values()],
+                                              'variable_counts': module_var_counts}
+
+    details_string_list.append('\n\n' + '#' * 100)
+    details_string_list.append(f'\n\nepisode count per module:')
+    details_string_list.append(pprint.pformat(episode_counter_dict, indent=4))
+    details_string_list.append('\n\nwhole JSON array string length:\n')
+    details_string_list.append(pprint.pformat(results, indent=4))
+    details_string_list.append(
+        '\n\n' + '#' * 100 + f'\n\nfragment variables needed ({CHARS_PER_FRAGMENT_VARIABLE} chars per fragment var):\n')
+    details_string_list.append(pprint.pformat(results_fragment, indent=4))
+    details_string_list.append('\n\n' + '#' * 100 + '\n' + '#' * 100)
+    # print('\n'.join(details_string_list))
+    output_file = Path(os.path.abspath(''), 'output', timestamp() + 'details.txt')
+    output_file.write_text('\n'.join(details_string_list), encoding='utf-8')
+    return tmp_dict
 
 
 def gen_trigger_str(trigger_dict: Dict[str, Dict[str, list]], fragment_list: List[str]) -> str:
@@ -236,9 +277,47 @@ def gen_trigger_str(trigger_dict: Dict[str, Dict[str, list]], fragment_list: Lis
     return output_str
 
 
+def calculate():
+    results_list = []
+    for counters_dict in [{'ns': i, 'va': 0, 'pl': 0} for i in [1, 10, 20, 30, 40, 50, 100, 150, 200]]:
+        results_list.append(calculate_size(input_xml=xml_source,
+                                           qo_str_length=100,
+                                           qo_random=False,
+                                           counts_dict=counters_dict))
+    a = [(entry['episode_count'], entry['all_modules_var_count'], entry['length_frag']['whole_json_length'],
+          entry['length_frag']['whole_json_length_compressed_and_hexencoded'],
+          entry['random'], entry['qo_length']) for entry in results_list]
+    uncompressed_frag = [entry[2] for entry in a]
+    compressed_frag = [entry[3] for entry in a]
+    episode_count = [sum(entry[0].values()) for entry in a]
+    # plotting the points
+    plt.scatter(episode_count, uncompressed_frag, color='k', label="uncompressed")
+    plt.plot(episode_count, uncompressed_frag, color='k')
+    plt.scatter(episode_count, compressed_frag, color='g', label="compressed")
+    plt.plot(episode_count, compressed_frag, color='g')
+    plt.legend()
+
+    # naming the x axis
+    plt.xlabel('Episode count')
+    # naming the y axis
+    plt.ylabel('Fragment Vars')
+
+    # giving a title to my graph
+    plt.title(f'#nset# var: sc={a[0][1]["ns"]["sc_count"]},'
+              f'mc={a[0][1]["ns"]["mc_count"]},'
+              f'qo={a[0][1]["ns"]["qo_count"]};\n'
+              f'qo_len:{a[0][5]};random={a[0][4]}')
+
+    # function to show the plot
+    plt.show()
+
+
+def generate_trigger(input_xml: Union[str, Path]):
+    t = gen_trigger_dict(input_xml, 'nset')
+    s = gen_trigger_str(t, ['episodes_fragment_1', 'episodes_fragment_2', 'episodes_fragment_3', 'episodes_fragment_4'])
+
+
 if __name__ == '__main__':
     xml_source = r'C:\Users\friedrich\zofar_workspace\Test_Modul\src\main\resources\questionnaire.xml'
-    calculate_size(xml_source)
-    t = gen_trigger_dict(xml_source, 'nset')
-    s = gen_trigger_str(t, ['episodes_fragment_1', 'episodes_fragment_2', 'episodes_fragment_3', 'episodes_fragment_4'])
-    breakpoint()
+    calculate()
+    generate_trigger(xml_source)

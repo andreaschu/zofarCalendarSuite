@@ -1,3 +1,6 @@
+import datetime
+
+
 def flatten(ll):
     """
     Flattens given list of lists by one level
@@ -7,3 +10,6 @@ def flatten(ll):
     """
     return [it for li in ll for it in li]
 
+
+def timestamp() -> str:
+    return datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S_%f')

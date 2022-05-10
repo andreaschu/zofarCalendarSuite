@@ -141,6 +141,8 @@ def create_array_of_dicts_max_fragment_var_count(fragment_var_count: int = 150,
 
 
 def create_module(episode_count: int, **kwargs) -> list:
+    if episode_count <= 0:
+        return []
     return flatten([add_random_episode_to_list(input_list=[], **kwargs, index=i) for i in range(episode_count)])
 
 
