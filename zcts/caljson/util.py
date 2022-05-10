@@ -1,12 +1,12 @@
 import datetime
 import json
 import random
-from dateutil.relativedelta import relativedelta
 from pathlib import Path
 from os import path
-from fragmentMemoryCalculator.fragmentMemoryCalculator import compress_and_hexencode
+from zcts.data.util import compress_and_hexencode
 import math
 import string
+from typing import Tuple
 
 from functools import reduce
 from operator import concat
@@ -21,7 +21,7 @@ TYPE_COLORS = ['blue', 'red', 'orange', 'yellow', 'black', 'green', 'violet', 'g
 STATES = ['new', 'done', 'modified']
 FLAGS = ['startHO', 'endHO', 'startIDK', 'endIDK', 'FLAG01', 'FLAG02', 'FLAG03', 'FLAG04']
 
-BLIND_TEXT = Path(path.abspath('.'), 'data', 'blindtext01.txt').read_text(encoding='utf-8').split(' ')
+BLIND_TEXT = Path(path.abspath(''), 'data', 'template', 'blindtext01.txt').read_text(encoding='utf-8').split(' ')
 
 
 def random_date(n: int = 1):
@@ -31,12 +31,28 @@ def random_date(n: int = 1):
                               hour=1) for _ in range(n)]
 
 
-def random_date_pair():
-    t1 = datetime.datetime(year=random.choice(range(50)) + 1980,
-                           month=random.choice(range(12)) + 1,
+def random_date_pair(start_year: int = 1980,
+                     start_month: int = 1,
+                     range_months: int = 50*12) -> Tuple[datetime.datetime, datetime.datetime]:
+    t1 = datetime.datetime(year=random.choice(range(50)) + start_year,
+                           month=random.choice(range(12)) + start_month,
                            day=1,
                            hour=1)
-    return t1, t1 + relativedelta(months=random.choice(range(120))) - relativedelta(days=1)
+
+    range_months = random.choice(range(range_months+1))
+
+    years_incr = math.floor(range_months / 12)
+    months_incr = range_months % 12
+
+    new_year = t1.year + years_incr
+    # additional increment by 1 because we want to decrease it by 1 day (to get the end of the month) later
+    new_month = t1.month + months_incr + 1
+
+    if new_month > 12:
+        new_year += 1
+        new_month = new_month-12
+
+    return t1, t1.replace(year=new_year, month=new_month) - datetime.timedelta(days=1)
 
 
 def as_zofar_datetime_str(timestamp_tuple: tuple):
@@ -76,8 +92,10 @@ def random_open_question_var_dict(k: int,
         # noinspection PyUnusedLocal
         # return {qo_var_name_stem + str(i): ''.join([random.choice(string.printable) for i in range(qo_str_length)]) for
         #         i in range(k)}
-        return {qo_var_name_stem + str(i): ''.join([random.choice(string.ascii_letters+string.digits+string.punctuation+string.whitespace) for i in range(qo_str_length)]) for
-                i in range(k)}
+        return {qo_var_name_stem + str(i): ''.join(
+            [random.choice(string.ascii_letters + string.digits + string.punctuation + string.whitespace) for i in
+             range(qo_str_length)]) for
+            i in range(k)}
     else:
         return {qo_var_name_stem + str(i): create_blindtext(str_length=qo_str_length) for i in range(k)}
 
@@ -127,9 +145,6 @@ def create_module(episode_count: int, **kwargs) -> list:
 
 
 def main():
-    # x = create_array_of_dicts_max_json_length(json_str_len=10000)
-    # y = create_array_of_dicts_max_fragment_var_count(fragment_var_count=150)
-
     whole_json_array = []
     nset_modul = create_module(episode_count=3,
                                sc_var_name_stem="sc_nset",

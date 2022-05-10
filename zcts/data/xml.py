@@ -38,6 +38,7 @@ class _VarRefBase:
 @dataclass
 class VarRef(_VarRefBase):
     variable: Variable
+    dropdown: bool = False
     # list of conditions (as spring expression) that have to be fulfilled in order to reach the variable reference
     condition: List[str] = field(default_factory=list)
 
@@ -122,7 +123,11 @@ def var_refs(page: ElementTree.Element, variables: Dict[str, Variable]) -> List[
             if _element.get('variable') not in variables:
                 raise ValueError(f"variable {_element.get('variable')} was referenced but not declared")
 
-            ref_list = [VarRef(variables[_element.get('variable')], _visible[:])]
+            if any([True for key, val in _element.attrib.items() if key == 'type' and val =='dropdown']):
+                ref_list = [VarRef(variables[_element.get('variable')], True, _visible[:])]
+            else:
+                ref_list = [VarRef(variables[_element.get('variable')], False, _visible[:])]
+
         else:
             ref_list = []
 

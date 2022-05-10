@@ -5,7 +5,7 @@ import string
 import snappy
 
 # pip install python-lorem
-import lorem
+# import lorem
 
 
 def hexdecode_and_decompress(input_str: str) -> str:
@@ -13,13 +13,13 @@ def hexdecode_and_decompress(input_str: str) -> str:
     decompressed_bytes = snappy.decompress(hexdecoded_bytes)
     return decompressed_bytes.decode('utf-8')
 
-
-def return_lorem_text(length: int = 2000):
-    para1 = ''
-    while len(para1) < length:
-        # noinspection PyTypeChecker
-        para1 += next(lorem.paragraph(count=1, comma=(0, 2), word_range=(12, 13), sentence_range=(30, 35))) + ' '
-    return para1[:1999] + '.'
+#
+# def return_lorem_text(length: int = 2000):
+#     para1 = ''
+#     while len(para1) < length:
+#         # noinspection PyTypeChecker
+#         para1 += next(lorem.paragraph(count=1, comma=(0, 2), word_range=(12, 13), sentence_range=(30, 35))) + ' '
+#     return para1[:1999] + '.'
 
 
 def create_test_dict(number_of_keys: int, val_length: int) -> dict:

@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 import os
 import shutil
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import asksaveasfilename
 
 
 class Question_QML_generator:
@@ -121,7 +121,7 @@ class Question_QML_generator:
 
             # assign letter suffixes to varname
             factor = math.floor(i / 26)
-            if factor >= 1 and factor <= 26:
+            if 1 <= factor <= 26:
                 tmp_varname += string.ascii_lowercase[factor - 1]
             elif factor == 0:
                 pass
@@ -134,18 +134,18 @@ class Question_QML_generator:
                 self.list_of_varnames.append(tmp_varname)
 
             self.generated_qml_string += '" uid="rd">\n'
-            for i in range(0, len(self.list_of_answer_option_labels)):
+            for j in range(0, len(self.list_of_answer_option_labels)):
                 self.generated_qml_string += '\t\t\t\t\t\t\t<zofar:answerOption uid="ao' + str(
-                    i + 1) + '" value="' + str(
-                    self.list_of_answer_option_values[i]) + '" label="' + \
-                                             self.list_of_answer_option_labels[i] + '"></zofar:answerOption>\n'
+                    j + 1) + '" value="' + str(
+                    self.list_of_answer_option_values[j]) + '" label="' + \
+                                             self.list_of_answer_option_labels[j] + '"></zofar:answerOption>\n'
 
-            for i in range(0, len(self.list_of_missing_answer_option_labels)):
+            for k in range(0, len(self.list_of_missing_answer_option_labels)):
                 self.generated_qml_string += '\t\t\t\t\t\t\t<zofar:answerOption uid="ao' + str(
-                    i + 1 + len(self.list_of_answer_option_labels)) + '" value="' + str(
-                    self.list_of_missing_answer_option_values[i]) + '" label="' + \
+                    k + 1 + len(self.list_of_answer_option_labels)) + '" value="' + str(
+                    self.list_of_missing_answer_option_values[k]) + '" label="' + \
                                              self.list_of_missing_answer_option_labels[
-                                                 i] + '" missing="true"></zofar:answerOption>\n'
+                                                 k] + '" missing="true"></zofar:answerOption>\n'
 
             self.generated_qml_string += '''\t\t\t\t\t\t</zofar:responseDomain>\n\t\t\t\t\t</zofar:item>\n\n'''
 
@@ -170,7 +170,8 @@ class Question_QML_JSON_Trigger_generator:
         self.fragment_variable_name_stem = fragment_variable_name_stem
         self.list_of_fragment_variables_names = []
 
-    def display_whole_json(self) -> str:
+    @staticmethod
+    def display_whole_json() -> str:
         tmp_display_whole_json = '<!-- display whole json -->'
         return tmp_display_whole_json
 
@@ -195,7 +196,7 @@ class Question_QML_JSON_Trigger_generator:
 
     def write_to_qml_file(self):
         # load template
-        tmp_xml_str = Path(os.path.abspath('.'), 'template', 'template_questionnaire.xml').read_text(encoding='utf-8')
+        tmp_xml_str = Path(os.path.abspath(''), 'data', 'template', 'template_questionnaire.xml').read_text(encoding='utf-8')
 
         # create questionOpen for index page (setting of episode_index)
         tmp_question_open_episode_index_str = """
@@ -306,7 +307,7 @@ class Question_QML_JSON_Trigger_generator:
             print(re.findall(r'XXX_.+?_XXX', tmp_xml_str))
             raise AssertionError(e)
 
-        output_file = Path(os.path.abspath('.'), 'output', 'questionnaire.xml')
+        output_file = Path(os.path.abspath(''), 'output', 'questionnaire.xml')
         output_file.write_text(data=tmp_xml_str, encoding='utf-8')
 
     def print_variable_declaration_str(self) -> None:
@@ -476,9 +477,7 @@ def main():
         target_project_xml = Path(target_project_folder, 'questionnaire.xml')
 
     else:
-        target_project_xml = askopenfilename(filetypes=[('questionnaire*.xml', 'questionnaire*.xml')])
-
-    output_directory = Path(os.path.abspath(r'output'))
+        target_project_xml = asksaveasfilename(filetypes=[('questionnaire*.xml', 'questionnaire*.xml')])
 
     x = Question_QML_generator('matrixQuestionSingleChoice', varname_stem='v32', index=1)
     x.question_text = """Wie hoch schätzen Sie die Akzeptanz Ihrer Tätigkeit ein?"""
@@ -488,7 +487,6 @@ def main():
                                       'Wirtschaftsingenieurwesen mit wirtschaftswiss. Schwerpunkt', 'Psychologie',
                                       'Erziehungswissenschaften', 'Anderes, und zwar']
     x.list_of_answer_option_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-    # x.list_of_answer_option_values = [i+1 for i in range(0, len(x.list_of_answer_option_labels))]
     x.list_of_answer_option_uids = ['ao' + str(i + 1) for i in range(0, len(x.list_of_answer_option_labels))]
 
     x.list_of_missing_answer_option_labels = []
@@ -504,20 +502,10 @@ def main():
                                 'seitens des zuständigen Ministeriums', 'seitens der Hochschulverwaltung',
                                 'seitens der Bewerber_innen']
 
-    # x.print_question_qml()
-
     y = Question_QML_generator('questionOpen', varname_stem='var001', index=1)
     y.generate_question_open()
-    # y.print_question_qml()
-
-    # y.print_variable_declaration()
-    # x.print_variable_declaration()
-
-    list_of_question_generator_objects = []
 
     open_question_count = 101
-
-    tmp_qml_list = []
 
     trigger_generator = Question_QML_JSON_Trigger_generator(number_of_fragment_variables=200)
 
