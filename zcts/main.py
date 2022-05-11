@@ -166,7 +166,7 @@ def calculate_size(input_xml: str,
 
     if min(episode_counter_dict.values()) == 0:
         # raise ValueError(f'Module "{[key for key, val in episode_counter_dict.items() if val == 0]}" has length 0.')
-        print(f'Module "{[key for key, val in episode_counter_dict.items() if val == 0]}" has length 0.')
+        print(f'Module(s) "{[key for key, val in episode_counter_dict.items() if val == 0]}" has/have length=0.')
 
     whole_json_array = []
     for module_name_abbr, module_count in episode_counter_dict.items():
@@ -278,23 +278,36 @@ def gen_trigger_str(trigger_dict: Dict[str, Dict[str, list]], fragment_list: Lis
 
 
 def calculate():
-    results_list = []
-    for counters_dict in [{'ns': i, 'va': 0, 'pl': 0} for i in [1, 10, 20, 30, 40, 50, 100, 150, 200]]:
-        results_list.append(calculate_size(input_xml=xml_source,
-                                           qo_str_length=100,
-                                           qo_random=False,
-                                           counts_dict=counters_dict))
-    a = [(entry['episode_count'], entry['all_modules_var_count'], entry['length_frag']['whole_json_length'],
-          entry['length_frag']['whole_json_length_compressed_and_hexencoded'],
-          entry['random'], entry['qo_length']) for entry in results_list]
-    uncompressed_frag = [entry[2] for entry in a]
-    compressed_frag = [entry[3] for entry in a]
-    episode_count = [sum(entry[0].values()) for entry in a]
-    # plotting the points
-    plt.scatter(episode_count, uncompressed_frag, color='k', label="uncompressed")
-    plt.plot(episode_count, uncompressed_frag, color='k')
-    plt.scatter(episode_count, compressed_frag, color='g', label="compressed")
-    plt.plot(episode_count, compressed_frag, color='g')
+    for qo_str_length, qo_random, color in [(40, False, 'b'), (200, False, 'g'), (2000, True, 'r')]:
+        results_list = []
+        for counters_dict in [{'ns': i, 'va': 0, 'pl': 0, 'ep': 0} for i in [1, 10, 20, 30, 40, 50, 100, 150, 200]]:
+            results_list.append(calculate_size(input_xml=xml_source,
+                                               qo_str_length=qo_str_length,
+                                               qo_random=qo_random,
+                                               counts_dict=counters_dict))
+        a = [(entry['episode_count'], entry['all_modules_var_count'], entry['length_frag']['whole_json_length'],
+              entry['length_frag']['whole_json_length_compressed_and_hexencoded'],
+              entry['random'], entry['qo_length']) for entry in results_list]
+        uncompressed_frag = [entry[2] for entry in a]
+        compressed_frag = [entry[3] for entry in a]
+        episode_count = [sum(entry[0].values()) for entry in a]
+        # plotting the points
+        plt.scatter(episode_count,
+                    uncompressed_frag,
+                    color=color)
+        plt.plot(episode_count,
+                 uncompressed_frag,
+                 color=color,
+                 label=f"uncompr,qo_len:{qo_str_length},random:{qo_random}")
+
+        plt.scatter(episode_count,
+                    compressed_frag,
+                    color=color)
+        plt.plot(episode_count,
+                 compressed_frag,
+                 color=color,
+                 linestyle='dashed',
+                 label=f"compr,qo_len:{qo_str_length},random:{qo_random}")
     plt.legend()
 
     # naming the x axis
@@ -305,8 +318,7 @@ def calculate():
     # giving a title to my graph
     plt.title(f'#nset# var: sc={a[0][1]["ns"]["sc_count"]},'
               f'mc={a[0][1]["ns"]["mc_count"]},'
-              f'qo={a[0][1]["ns"]["qo_count"]};\n'
-              f'qo_len:{a[0][5]};random={a[0][4]}')
+              f'qo={a[0][1]["ns"]["qo_count"]};\n')
 
     # function to show the plot
     plt.show()
