@@ -81,7 +81,10 @@ def gen_trigger_dict(input_xml: Union[str, Path], page_name_startswith: str) -> 
         return f"""<zofar:scriptItem value="toReset.add('{var}')" />"""
 
     def _trigger_save(var: str, sc: bool = False) -> str:
-        return f"""<zofar:scriptItem value="toPersist.put('{var}',{var}.valueId)" />"""
+        if not sc:
+            return f"""<zofar:scriptItem value="toPersist.put('{var}',{var}.valueId)" />"""
+        else:
+            return f"""<zofar:scriptItem value="toPersist.put('{var}',{var}.value)" />"""
 
     def _trigger_load(var: str) -> str:
         return f"""<zofar:scriptItem value="toLoad.add('{var}')" />"""
