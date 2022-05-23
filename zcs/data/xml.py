@@ -1,8 +1,9 @@
-from typing import Dict, List, Union, Optional
+import json
+from typing import Dict, List, Union, Optional, Tuple
 from xml.etree import ElementTree
 from dataclasses import dataclass, field
 from pathlib import Path
-from zcts.util import flatten
+from zcs.util import flatten
 import re
 
 ns = {'zofar': 'http://www.his.de/zofar/xml/questionnaire'}
@@ -71,6 +72,8 @@ class Page:
 class Questionnaire:
     variables: Dict[str, Variable]
     pages: List[Page]
+    split_types: Dict[str, List[Dict[str, str]]]
+    split_transitions: Dict[str, List[Dict[str, Dict[str, str]]]]
 
 
 def variable_declarations(root: ElementTree.Element) -> Dict[str, Variable]:
@@ -123,7 +126,7 @@ def var_refs(page: ElementTree.Element, variables: Dict[str, Variable]) -> List[
             if _element.get('variable') not in variables:
                 raise ValueError(f"variable {_element.get('variable')} was referenced but not declared")
 
-            if any([True for key, val in _element.attrib.items() if key == 'type' and val =='dropdown']):
+            if any([True for key, val in _element.attrib.items() if key == 'type' and val == 'dropdown']):
                 ref_list = [VarRef(variables[_element.get('variable')], True, _visible[:])]
             else:
                 ref_list = [VarRef(variables[_element.get('variable')], False, _visible[:])]
@@ -172,23 +175,18 @@ def json_attrs(page: ElementTree.Element, variables: Dict[str, Variable]) -> Lis
 
         # if the element is a script item with toPersist.put(), return one-element list containing the `json_attr`.
         # Otherwise, an empty list.
+        attr_list = []
         if _element.tag == f'{{{ns["zofar"]}}}scriptItem':
             # check if referenced variable is declared
             if _element.get('value') is not None:
                 key_value_list = [(key, value) for key, value in
                                   re.findall(r"^toPersist.put\('([a-zA-Z0-9_]+)\s*',\s*(.+)\)\s*$",
                                              _element.get('value'))]
-                attr_list = []
                 for key, val in key_value_list:
                     if key in variables:
                         attr_list.append(VarRef(variable=variables[key]))
                     else:
                         attr_list.append(JsonAttrRef(variable=JsonAttr(name=key), value=val))
-
-            else:
-                attr_list = []
-        else:
-            attr_list = []
 
         # apply recursive call and flat map on all child elements
         return attr_list + flatten([_json_attrs(ch, variables) for ch in _element])
@@ -199,6 +197,41 @@ def json_attrs(page: ElementTree.Element, variables: Dict[str, Variable]) -> Lis
         return []
     else:
         return _json_attrs(body, variables)
+
+
+def get_json_data(element: ElementTree.Element,
+                  root_key: str) -> Union[Dict[str, Dict[str, List[Dict[str, str]]]],
+                                          Dict[str, Dict[str, Dict[str, List[Dict[str, str]]]]]]:
+    if element.text.find(root_key) != -1:
+        try:
+            raw_split_types_dict = json.loads(element.text)
+            if root_key in raw_split_types_dict.keys():
+                return raw_split_types_dict[root_key]
+        except json.decoder.JSONDecodeError as err:
+            print('input data:')
+            print(f'{err.doc}')
+            print('error message:')
+            print(f'{err.msg}')
+            raise json.decoder.JSONDecodeError(err.msg, err.doc, err.pos)
+    return {}
+
+
+def split_data(root: ElementTree.Element) -> \
+        Tuple[Dict[str, List[Dict[str, str]]], Dict[str, List[Dict[str, Dict[str, str]]]]]:
+    split_types_dict = {}
+    split_transition_dict = {}
+    for element in root.iter():
+        if hasattr(element, "text"):
+            if element.text is not None:
+                if split_types_dict == {}:
+                    split_types_dict = get_json_data(element, "SPLIT_TYPES")
+
+                raw_split_transition_dict = get_json_data(element, "SPLIT_TRANSITIONS")
+                if set(raw_split_transition_dict.keys()).intersection(split_transition_dict):
+                    raise KeyError(
+                        f'Duplicate keys found: {set(raw_split_transition_dict.keys()).intersection(split_transition_dict)}')
+                split_transition_dict.update(raw_split_transition_dict)
+    return split_types_dict, split_transition_dict
 
 
 def questionnaire(root: ElementTree.Element) -> Questionnaire:
@@ -213,16 +246,25 @@ def questionnaire(root: ElementTree.Element) -> Questionnaire:
     pages = [Page(page.attrib['uid'], transitions(page), var_refs(page, variables), json_attrs(page, variables))
              for page in root.findall("zofar:page", ns)]
 
-    return Questionnaire(variables, pages)
+    split_type_dict, split_transitions_dict = split_data(root=root)
+
+    return Questionnaire(variables, pages, split_type_dict, split_transitions_dict)
 
 
-def read_questionnaire(input_path: Union[Path, str]) -> Questionnaire:
+def read_questionnaire(input_path: Union[Path, str], with_comments: bool = False) -> Questionnaire:
     """
     Reads file from `input_path` and converts it into a `Questionnaire`
 
+    :param with_comments: enables parsing of comments
     :param input_path: path to input file as `str` or `Path`
     :return: `Questionnaire`
     """
-    xml_root = ElementTree.parse(input_path)
+    if with_comments:
+        # noinspection PyArgumentList
+        parser = ElementTree.XMLParser(target=ElementTree.TreeBuilder(insert_comments=True))
+        xml_root = ElementTree.parse(input_path, parser)
+
+    else:
+        xml_root = ElementTree.parse(input_path)
 
     return questionnaire(xml_root.getroot())

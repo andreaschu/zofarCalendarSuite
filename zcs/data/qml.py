@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Union, Dict, List
 from collections import defaultdict
-from zcts.data.xml import read_questionnaire, Variable
+from zcs.data.xml import read_questionnaire, Variable
 
 
 def gen_trigger_str(trigger_dict: Dict[str, Dict[str, list]], fragment_list: List[str]) -> str:

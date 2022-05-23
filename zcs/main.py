@@ -3,15 +3,15 @@ import os.path
 import pprint
 import matplotlib.pyplot as plt
 
-from zcts.data.xml import read_questionnaire, VarRef, JsonAttrRef, Variable, JsonAttr, Questionnaire
+from zcs.data.xml import read_questionnaire, VarRef, JsonAttrRef, Variable, JsonAttr, Questionnaire
 from typing import Dict, Union, Tuple
 from collections import defaultdict
-from zcts.caljson.util import create_module
-from zcts.data.util import compress_and_hexencode
-from zcts.util import timestamp
+from zcs.caljson.util import create_module
+from zcs.data.util import compress_and_hexencode
+from zcs.util import timestamp
 import math
 from pathlib import Path
-from zcts.data.qml import generate_trigger
+from zcs.data.qml import generate_trigger
 
 VAR_TYPES = ['string', 'enum', 'boolean']
 CHARS_PER_FRAGMENT_VARIABLE = 1500

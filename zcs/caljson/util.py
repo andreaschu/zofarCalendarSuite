@@ -3,7 +3,7 @@ import json
 import random
 from pathlib import Path
 from os import path
-from zcts.data.util import compress_and_hexencode
+from zcs.data.util import compress_and_hexencode
 import math
 import string
 from typing import Tuple

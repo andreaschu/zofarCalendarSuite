@@ -1,4 +1,4 @@
-from zcts.data.xml import read_questionnaire
+from zcs.data.xml import read_questionnaire
 
 
 def main():
