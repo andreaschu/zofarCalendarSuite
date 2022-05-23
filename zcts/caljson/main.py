@@ -261,7 +261,6 @@ class Question_QML_JSON_Trigger_generator:
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['index_trigger'],
                                           '<!-- index_trigger-->')
 
-
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_index_body'],
                                           tmp_question_open_episode_index_str)
         tmp_xml_str = tmp_xml_str.replace(replacement_dict['set_episode_index_trigger'],
