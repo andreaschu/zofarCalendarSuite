@@ -14,9 +14,18 @@ def main():
         print(f'<!-- {page_name} -->')
         for trigger_name, trigger_data in trigger_dict.items():
             print(f'<!-- {trigger_name.upper()} TRIGGER -->')
-            print('#PLACEHOLDER#')
+
+            if trigger_name == 'reset':
+                print("""<zofar:action command="zofar.nothing()" onExit="false">\n""")
+                print("""<!-- reset page variables -->\n""")
+            elif trigger_name == 'load':
+                print()
+            elif trigger_name == 'save':
+                print()
             print('\n'.join(trigger_data))
-            print('#PLACEHOLDER#')
+
+
+            print("""</zofar:action>\n""")
         print('\n\n')
     breakpoint()
 
