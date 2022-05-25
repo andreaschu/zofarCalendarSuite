@@ -217,21 +217,25 @@ def get_json_data(element: ElementTree.Element,
 
 
 def split_data(root: ElementTree.Element) -> \
-        Tuple[Dict[str, List[Dict[str, str]]], Dict[str, List[Dict[str, Dict[str, str]]]]]:
+        Tuple[Dict[str, List[Dict[str, str]]], Dict[str, List[Dict[str, Dict[str, str]]]], List[str]]:
     split_types_dict = {}
     split_transition_dict = {}
+    module_pagename_prefixes = []
     for element in root.iter():
         if hasattr(element, "text"):
             if element.text is not None:
                 if split_types_dict == {}:
                     split_types_dict = get_json_data(element, "SPLIT_TYPES")
+                if module_pagename_prefixes == []:
+                    raw_module_pagename_prefixes = get_json_data(element, "MODULE_PAGENAME_PREFIXES")
+                    print()
 
                 raw_split_transition_dict = get_json_data(element, "SPLIT_TRANSITIONS")
                 if set(raw_split_transition_dict.keys()).intersection(split_transition_dict):
                     raise KeyError(
                         f'Duplicate keys found: {set(raw_split_transition_dict.keys()).intersection(split_transition_dict)}')
                 split_transition_dict.update(raw_split_transition_dict)
-    return split_types_dict, split_transition_dict
+    return split_types_dict, split_transition_dict, module_pagename_prefixes
 
 
 def questionnaire(root: ElementTree.Element) -> Questionnaire:
@@ -246,7 +250,7 @@ def questionnaire(root: ElementTree.Element) -> Questionnaire:
     pages = [Page(page.attrib['uid'], transitions(page), var_refs(page, variables), json_attrs(page, variables))
              for page in root.findall("zofar:page", ns)]
 
-    split_type_dict, split_transitions_dict = split_data(root=root)
+    split_type_dict, split_transitions_dict, module_pagename_prefixes = split_data(root=root)
 
     return Questionnaire(variables, pages, split_type_dict, split_transitions_dict)
 
