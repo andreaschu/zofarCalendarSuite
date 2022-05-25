@@ -1,33 +1,23 @@
-from zcs.data.xml import read_questionnaire
-from tkinter.filedialog import askopenfilename
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 from pathlib import Path
-import os
-from zcs.data.qml import gen_trigger_dict
-import shutil
+from zcs.data.qml import gen_trigger_dict, gen_trigger_str
 
 
 def main():
     input_xml = askopenfilename()
-    trig_gen = gen_trigger_dict(input_xml=input_xml, page_name_startswith='')
+    trigger_dict = gen_trigger_dict(input_xml=input_xml, page_name_startswith='vaa')
 
-    for page_name, trigger_dict in trig_gen.items():
-        print(f'<!-- {page_name} -->')
-        for trigger_name, trigger_data in trigger_dict.items():
-            print(f'<!-- {trigger_name.upper()} TRIGGER -->')
+    fragment_var_name_stem = 'episodes_fragment'
+    number_of_fragments = 4
+    fragment_var_list = [fragment_var_name_stem+str(i+1) for i in range(number_of_fragments)]
 
-            if trigger_name == 'reset':
-                print("""<zofar:action command="zofar.nothing()" onExit="false">\n""")
-                print("""<!-- reset page variables -->\n""")
-            elif trigger_name == 'load':
-                print()
-            elif trigger_name == 'save':
-                print()
-            print('\n'.join(trigger_data))
+    trigger_string = gen_trigger_str(trigger_dict, fragment_list=fragment_var_list)
 
+    output_file_str = asksaveasfilename(initialfile='trigger_output.txt', )
+    if output_file_str != '':
+        Path(output_file_str).write_text(trigger_string, encoding='utf-8')
 
-            print("""</zofar:action>\n""")
-        print('\n\n')
-    breakpoint()
+    print(trigger_string)
 
 
 if __name__ == '__main__':
