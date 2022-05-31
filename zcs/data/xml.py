@@ -74,6 +74,8 @@ class Questionnaire:
     pages: List[Page]
     split_types: Dict[str, List[Dict[str, str]]]
     split_transitions: Dict[str, List[Dict[str, Dict[str, str]]]]
+    module_dict: Optional[Dict[str, List[str]]] = None
+    submodule_dict: Optional[Dict[str, List[str]]] = None
 
 
 def variable_declarations(root: ElementTree.Element) -> Dict[str, Variable]:

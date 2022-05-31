@@ -1,15 +1,21 @@
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 from pathlib import Path
-from zcs.data.qml import gen_trigger_dict, gen_trigger_str
+from zcs.data.qml import gen_trigger_dict, gen_trigger_str, read_questionnaire
+from zcs.modfind.main import get_cal_modules
 
 
 def main():
     input_xml = askopenfilename()
+
+    q = read_questionnaire(input_xml, with_comments=True)
+
+    q.modules_dict, q.submodules_dict = get_cal_modules(q)
+
     trigger_dict = gen_trigger_dict(input_xml=input_xml, page_name_startswith='vaa')
 
     fragment_var_name_stem = 'episodes_fragment'
     number_of_fragments = 4
-    fragment_var_list = [fragment_var_name_stem+str(i+1) for i in range(number_of_fragments)]
+    fragment_var_list = [fragment_var_name_stem + str(i + 1) for i in range(number_of_fragments)]
 
     trigger_string = gen_trigger_str(trigger_dict, fragment_list=fragment_var_list)
 

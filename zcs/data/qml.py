@@ -69,7 +69,7 @@ def generate_trigger(input_xml: Union[str, Path], page_name_startswith: str, fra
 
 def gen_trigger_dict(input_xml: Union[str, Path], page_name_startswith: str) -> Dict[str, Dict[str, list]]:
     # ToDo: 2022-05-12 CF: add handling of variables from prior pages (parent nodes) that are stored within the json and
-    #  are use on the current page
+    #  are used on the current page
     # ToDo: 2022-05-12 CF: define end-pages as leaf nodes within the subset graph
     # ToDo: 2022-05-12 CF: find a way to mark pages as split pages and process them as such (split-stack & split-trigger)
 
