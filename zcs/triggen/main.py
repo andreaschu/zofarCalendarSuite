@@ -5,7 +5,8 @@ from zcs.modfind.main import get_cal_modules
 
 
 def main():
-    input_xml = askopenfilename()
+    input_xml = r'C:\Users\friedrich\PycharmProjects\zofarCalendarSuite\zcs\caljson\main.py'
+    # input_xml = askopenfilename()
 
     q = read_questionnaire(input_xml, with_comments=True)
 
@@ -19,7 +20,7 @@ def main():
 
     trigger_string = gen_trigger_str(trigger_dict, fragment_list=fragment_var_list)
 
-    output_file_str = asksaveasfilename(initialfile='trigger_output.txt', )
+    output_file_str = asksaveasfilename(initialfile='trigger_output.txt')
     if output_file_str != '':
         Path(output_file_str).write_text(trigger_string, encoding='utf-8')
 
