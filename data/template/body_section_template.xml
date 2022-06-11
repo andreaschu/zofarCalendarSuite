@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<zofar:questionnaire
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns:zofar="http://www.his.de/zofar/xml/questionnaire"
+        xmlns:display="http://www.dzhw.eu/zofar/xml/display" language="de">
+    <zofar:page>
+        <zofar:body>
+            <zofar:section uid="DEBUG_SECTION_UID" isaccordion="true">
+                <zofar:header>
+                </zofar:header>
+                <zofar:body uid="b">
+                </zofar:body>
+            </zofar:section>
+        </zofar:body>
+    </zofar:page>
+</zofar:questionnaire>

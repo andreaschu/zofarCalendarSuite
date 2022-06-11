@@ -55,4 +55,8 @@ def main():
 
 
 if __name__ == '__main__':
+    # print(compress_and_hexencode('[{"TypA":{"split_var":[{"splitvar01":"ao1"}],"timestamp_var":"splittimestamp01"},"TypB":{"split_var":[{"splitvar02":"ao1"}],"timestamp_var":"splittimestamp02"},"TypC":{"split_var":[{"vaa14XX":"ao1"}],"timestamp_var":"vaa15splitDateXX"}}]'.encode('utf-8')))
+    # print(hexdecode_and_decompress('db01c85b7b2254797041223a7b2273706c69745f766172223a5b7b227661613130223a22616f31227d5d2c2274696d657374616d705f05220520003105331844617465227d2c0148004256480000327a480000333e4800004356480000347a4800343573706c697444617465227d7d5d'))
     main()
+
+    print(hexdecode_and_decompress(''))

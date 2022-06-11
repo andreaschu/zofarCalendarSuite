@@ -1,5 +1,5 @@
 import json
-from typing import Dict, List, Union, Optional, Tuple
+from typing import Dict, List, Union, Optional, Tuple, Any
 from xml.etree import ElementTree
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -72,8 +72,7 @@ class Page:
 class Questionnaire:
     variables: Dict[str, Variable]
     pages: List[Page]
-    split_types: Dict[str, List[Dict[str, str]]]
-    split_transitions: Dict[str, List[Dict[str, Dict[str, str]]]]
+    split_data: Dict[str, Dict[str, Any]]
     module_dict: Optional[Dict[str, List[str]]] = None
     submodule_dict: Optional[Dict[str, List[str]]] = None
 
@@ -206,9 +205,9 @@ def get_json_data(element: ElementTree.Element,
                                           Dict[str, Dict[str, Dict[str, List[Dict[str, str]]]]]]:
     if element.text.find(root_key) != -1:
         try:
-            raw_split_types_dict = json.loads(element.text)
-            if root_key in raw_split_types_dict.keys():
-                return raw_split_types_dict[root_key]
+            raw_split_data_dict = json.loads(element.text.replace('\n', '').replace(' ', ''))
+            if root_key in raw_split_data_dict.keys():
+                return raw_split_data_dict[root_key]
         except json.decoder.JSONDecodeError as err:
             print('input data:')
             print(f'{err.doc}')
@@ -218,26 +217,20 @@ def get_json_data(element: ElementTree.Element,
     return {}
 
 
-def split_data(root: ElementTree.Element) -> \
-        Tuple[Dict[str, List[Dict[str, str]]], Dict[str, List[Dict[str, Dict[str, str]]]], List[str]]:
+def get_split_data(root: ElementTree.Element) -> \
+        Dict[str, Dict[str, Dict[str, Any]]]:
     split_types_dict = {}
-    split_transition_dict = {}
+    split_data_dict = {}
     module_pagename_prefixes = []
     for element in root.iter():
         if hasattr(element, "text"):
             if element.text is not None:
-                if split_types_dict == {}:
-                    split_types_dict = get_json_data(element, "SPLIT_TYPES")
-                if module_pagename_prefixes == []:
-                    raw_module_pagename_prefixes = get_json_data(element, "MODULE_PAGENAME_PREFIXES")
-                    print()
-
-                raw_split_transition_dict = get_json_data(element, "SPLIT_TRANSITIONS")
-                if set(raw_split_transition_dict.keys()).intersection(split_transition_dict):
-                    raise KeyError(
-                        f'Duplicate keys found: {set(raw_split_transition_dict.keys()).intersection(split_transition_dict)}')
-                split_transition_dict.update(raw_split_transition_dict)
-    return split_types_dict, split_transition_dict, module_pagename_prefixes
+                if "SPLIT_DATA" in element.text:
+                    if split_data_dict == {}:
+                        if get_json_data(element, "SPLIT_DATA") != {}:
+                            split_data_dict = get_json_data(element, "SPLIT_DATA")
+                            break
+    return split_data_dict
 
 
 def questionnaire(root: ElementTree.Element) -> Questionnaire:
@@ -252,9 +245,9 @@ def questionnaire(root: ElementTree.Element) -> Questionnaire:
     pages = [Page(page.attrib['uid'], transitions(page), var_refs(page, variables), json_attrs(page, variables))
              for page in root.findall("zofar:page", ns)]
 
-    split_type_dict, split_transitions_dict, module_pagename_prefixes = split_data(root=root)
+    split_data_dict = get_split_data(root=root)
 
-    return Questionnaire(variables, pages, split_type_dict, split_transitions_dict)
+    return Questionnaire(variables, pages, split_data_dict)
 
 
 def read_questionnaire(input_path: Union[Path, str], with_comments: bool = False) -> Questionnaire:
@@ -274,3 +267,4 @@ def read_questionnaire(input_path: Union[Path, str], with_comments: bool = False
         xml_root = ElementTree.parse(input_path)
 
     return questionnaire(xml_root.getroot())
+

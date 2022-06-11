@@ -3,10 +3,37 @@
                      xmlns:zofar="http://www.his.de/zofar/xml/questionnaire"
                      xmlns:display="http://www.dzhw.eu/zofar/xml/display"
                      language="de">
+
+    <!--
+    {
+	"SPLIT_DATA": {
+            "Modul1": {
+                "PAGE_NAME_STARTSWITH": "vaa",
+                "SPLIT_TYPE_DICT": {},
+                "SPLIT_TRANSITIONS_DICT": {},
+                "SPLIT_PAGES_LIST": []
+            },
+            "Modul2": {
+                "PAGE_NAME_STARTSWITH": "",
+                "SPLIT_TYPE_DICT": {},
+                "SPLIT_TRANSITIONS_DICT": {},
+                "SPLIT_PAGES_LIST": []
+            },
+            "Modul3": {
+                "PAGE_NAME_STARTSWITH": "",
+                "SPLIT_TYPE_DICT": {},
+                "SPLIT_TRANSITIONS_DICT": {},
+                "SPLIT_PAGES_LIST": []
+            }
+        }
+    }
+   -->
+
+
     <zofar:name>Fragment Variable Sizing Test</zofar:name>
     <zofar:description />
     <zofar:preloads>
-        <zofar:preload password="tester1" name="tester1" />
+        <zofar:preload password="tester1" name="tester1" ><!-- what about this comment? will it work?! --></zofar:preload>
         <zofar:preload password="tester2" name="tester2" />
         <zofar:preload password="tester3" name="tester3" />
         <zofar:preload password="tester4" name="tester4" />
@@ -160,6 +187,39 @@
         </zofar:header>
         <zofar:body uid="b">
         </zofar:body>
+        <zofar:triggers>
+            <!-- EVERYTHING BELOW WILL BE AUTOMATICALLY DELETED AND REPLACED! -->
+            <!-- AUTOMATICALLY GENERATED JSON TRIGGER START (DO NOT MOVE OR REMOVE THIS COMMENT!) -->
+			<!-- actions to persist -->
+			<zofar:action
+				command="zofar.frac(zofar.list(episodes_fragment_1,episodes_fragment_2,episodes_fragment_3,episodes_fragment_4),zofar.jsonArr2str(defrac))"
+				onExit="true">
+				<zofar:scriptItem
+					value="zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list(episodes_fragment_1,episodes_fragment_2,episodes_fragment_3,episodes_fragment_4))))" />
+				<zofar:scriptItem
+					value="zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value))) " />
+
+				<zofar:scriptItem value="zofar.assign('toPersist',zofar.map())" />
+					<zofar:scriptItem value="toPersist.put('staa19a',staa19a.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19b',staa19b.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19c',staa19c.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19d',staa19d.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19e',staa19e.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19f',staa19f.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19g',staa19g.value)" />
+					<zofar:scriptItem value="toPersist.put('staa19h',staa19h.value)" />
+					<zofar:scriptItem value="toPersist.put('staa20',staa20.value)" />
+
+					<zofar:scriptItem value="toPersist.put('vaa05',vaa05.valueId)" />
+					<zofar:scriptItem value="toPersist.put('vaa06',vaa06.value)" />
+
+				<zofar:scriptItem value="zofar.setJsonProperties('episodeObj',episodeObj,toPersist)" />
+
+				<zofar:scriptItem value="zofar.assign('defrac',zofar.addOrReplaceJson(defrac,episodeObj,zofar.toInteger(episode_index.value)))" />
+			</zofar:action>
+            <!-- AUTOMATICALLY GENERATED JSON TRIGGER END (DO NOT MOVE OR REMOVE THIS COMMENT!) -->
+            <!-- EVERYTHING ABOVE WILL BE AUTOMATICALLY DELETED AND REPLACED! -->
+        </zofar:triggers>
     </zofar:page>
 
 </zofar:questionnaire>

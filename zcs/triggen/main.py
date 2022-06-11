@@ -5,14 +5,15 @@ from zcs.modfind.main import get_cal_modules
 
 
 def main():
-    input_xml = r'C:\Users\friedrich\PycharmProjects\zofarCalendarSuite\zcs\caljson\main.py'
-    # input_xml = askopenfilename()
+    # input_xml = r'C:\Users\friedrich\PycharmProjects\zofarCalendarSuite\zcs\caljson\main.py'
+    input_xml = askopenfilename()
 
+    # q = read_questionnaire(input_xml, with_comments=True)
     q = read_questionnaire(input_xml, with_comments=True)
 
     q.modules_dict, q.submodules_dict = get_cal_modules(q)
 
-    trigger_dict = gen_trigger_dict(input_xml=input_xml, page_name_startswith='vaa')
+    trigger_dict = gen_trigger_dict(input_xml=input_xml, page_name_startswith='stu')
 
     fragment_var_name_stem = 'episodes_fragment'
     number_of_fragments = 4

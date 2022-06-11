@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Union, Dict, List
 from collections import defaultdict
-from zcs.data.xml import read_questionnaire, Variable
+from zcs.data.xmlutil import read_questionnaire, Variable
 
 
 def gen_trigger_str(trigger_dict: Dict[str, Dict[str, list]], fragment_list: List[str]) -> str:
@@ -129,3 +129,4 @@ def gen_trigger_dict(input_xml: Union[str, Path], page_name_startswith: str) -> 
             trigger_dict[page.uid]['save'] += _save_trigger(variable)
 
     return trigger_dict
+
