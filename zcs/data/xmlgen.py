@@ -125,7 +125,8 @@ def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
         new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_list)}),zofar.jsonArr2str(defrac))"
         new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
                                            attrib={"command": new_action_command,
-                                                   "onExit": "true"})
+                                                   "onExit": "true",
+                                                   "direction": "forward"})
         tmp_comment = etree.Comment(
             f"automatically generated trigger for removing split type '{split_type}' from 'current_split' of episode")
         new_action_element.insert(0, tmp_comment)
