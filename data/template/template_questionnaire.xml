@@ -10,19 +10,19 @@
             "Modul1": {
                 "PAGE_NAME_STARTSWITH": "vaa",
                 "SPLIT_TYPE_DICT": {},
-                "SPLIT_TRANSITIONS_DICT": {},
+                "SPLIT_TRANSITIONS_LIST": {},
                 "SPLIT_PAGES_LIST": []
             },
             "Modul2": {
                 "PAGE_NAME_STARTSWITH": "",
                 "SPLIT_TYPE_DICT": {},
-                "SPLIT_TRANSITIONS_DICT": {},
+                "SPLIT_TRANSITIONS_LIST": {},
                 "SPLIT_PAGES_LIST": []
             },
             "Modul3": {
                 "PAGE_NAME_STARTSWITH": "",
                 "SPLIT_TYPE_DICT": {},
-                "SPLIT_TRANSITIONS_DICT": {},
+                "SPLIT_TRANSITIONS_LIST": {},
                 "SPLIT_PAGES_LIST": []
             }
         }
