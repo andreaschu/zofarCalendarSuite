@@ -127,7 +127,7 @@ def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
                                              input_xml: Union[str, Path],
                                              split_type_to_remove: str) -> None:
     def _create_save_trigger_element(split_type: str, frag_var_ls: List[str]) -> etree.Element:
-        new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_list)}),zofar.jsonArr2str(defrac))"
+        new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_list)}),zofar.jsonArr2str(json_array))"
         new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
                                            attrib={"command": new_action_command,
                                                    "onExit": "true",
@@ -136,12 +136,12 @@ def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
             f"automatically generated trigger for removing split type '{split_type}' from 'current_split' of episode")
         new_action_element.insert(0, tmp_comment)
         script_item_str_list = [
-            f"zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
-            "zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value))) ",
+            f"zofar.assign('json_array',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
+            "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
             "zofar.assign('toPersist',zofar.map())",
-            f"zofar.deleteCurrentSplitType(defrac,episode_index,'{split_type}')",
+            f"zofar.deleteCurrentSplitType(json_array,zofar.toInteger(episode_index.value),'{split_type}')",
             "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
-            "zofar.assign('defrac',zofar.addOrReplaceJson(defrac,episodeObj,zofar.toInteger(episode_index.value)))"]
+            "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
 
         [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
          create_script_item is not None]
@@ -173,23 +173,23 @@ def auto_generate_split_episode_trigger(xml_element: etree.Element,
 
     escaped_split_type_dict_json = json.dumps(split_type_dict).replace('"', '*')
     script_item_str_list = [
-        f"zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_vars_list)}))))",
-        "zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value))) ",
-        f"zofar.assign('split_type_dict',zofar.parseJsonObj({escaped_split_type_dict_json}))",
+        f"zofar.assign('json_array',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_vars_list)}))))",
+        "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
+        f"zofar.assign('split_type_dict',zofar.parseJsonObj('{escaped_split_type_dict_json}'))",
         # DEBUG ToDo remove later
         "zofar.log('split_type_dict: '.concat(split_type_dict),sessionController.participant)",
         # DEBUG ToDo remove later
         "zofar.log('json_array prior to split: '.concat(json_array),sessionController.participant)",
-        "zofar.assign('index_json_map', zofar.splitEpisode(json_array,zofar.asNumber(episode_index), split_type_dict))",
-        # DEBUG ToDo remove later
-        "zofar.log('index_json_map after split: '.concat(index_json_map),sessionController.participant)",
+        "zofar.assign('index_json_map', zofar.splitEpisode(json_array,zofar.toInteger(episode_index.value), split_type_dict))",
         # DEBUG ToDo remove later
         "zofar.log('index_json_map after split: '.concat(index_json_map),sessionController.participant)",
         "zofar.assign('newSplitIndex',index_json_map['index'])",
+        # DEBUG ToDo remove later
+        "zofar.log('newSplitIndex after split: '.concat(newSplitIndex),sessionController.participant)",
         "zofar.assign('json_array',index_json_map['episodes'])",
         # DEBUG ToDo remove later
         "zofar.log('json_array after split: '.concat(json_array),sessionController.participant)",
-        "zofar.setVariableValue(episode_index,splitIndex)"]
+        "zofar.setVariableValue(episode_index,newSplitIndex)"]
 
     [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
      create_script_item is not None]
@@ -232,8 +232,8 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
         new_action_element.insert(0, tmp_comment)
 
         script_item_str_list = [
-            f"zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
-            "zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value)))",
+            f"zofar.assign('json_array',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
+            "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value)))",
             "zofar.assign('monthMap',zofar.map('1=ao1,2=ao2,3=ao3,4=ao4,5=ao5,6=ao6,7=ao7,8=ao8,9=ao9,10=ao10,11=ao11,12=ao12'))",
             "zofar.assign('yearMap',zofar.map('2018=ao1,2019=ao2,2020=ao3,2021=ao4,2022=ao5,2023=ao6,2024=ao7'))",
             "zofar.setVariableValue(v_startmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1))",
@@ -257,7 +257,7 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
         return new_action_element
 
     def _create_save_trigger_element(var_list: list, frag_var_ls: List[str]) -> etree.Element:
-        new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_list)}),zofar.jsonArr2str(defrac))"
+        new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_list)}),zofar.jsonArr2str(json_array))"
         new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
                                            attrib={"command": new_action_command,
                                                    "onExit": "true"})
@@ -266,8 +266,8 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
         new_action_element.insert(0, tmp_comment)
 
         script_item_str_list = [
-            f"zofar.assign('defrac',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
-            "zofar.assign('episodeObj',zofar.getOrCreateJson(defrac,zofar.toInteger(episode_index.value))) ",
+            f"zofar.assign('json_array',zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
+            "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
             "zofar.assign('toPersist',zofar.map())"]
         for index, variable in enumerate(var_list):
             if variable.dropdown:
@@ -288,7 +288,7 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
 
         script_item_str_list += [
             "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
-            "zofar.assign('defrac',zofar.addOrReplaceJson(defrac,episodeObj,zofar.toInteger(episode_index.value)))"]
+            "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
 
         script_item_str_list.append("zofar.assign('toLoad',zofar.list())")
         for index, variable in enumerate(var_list):
@@ -460,7 +460,10 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             f'Split Type from {SPLIT_TYPE_DICT} not found in {SPLIT_TYPE_ORDER}: "{split_type_name}"')
                     transition_target = split_type_data[START_PAGE]
                     split_type_end_pages_list = [page for page in split_type_data[END_PAGES] if page != '']
-                    transition_condition = f"zofar.hasCurrentSplitType(defrac, episode_index, '{split_type_name}')"
+                    # this is the condition we use for module end pages as well as current split end pages
+                    transition_condition = f"zofar.hasCurrentSplitType(" \
+                                           f"zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_list)}))" \
+                                           f"), zofar.toInteger(episode_index.value), '{split_type_name}')"
                     for page in module_end_pages:
                         generated_split_type_transitions_dict[page].append(
                             create_transition(transition_target, transition_condition))
@@ -473,11 +476,8 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             for split_type_name_rest in module_split_type_order[list_index + 1:]:
                                 split_type_end_page_transition_target = module_split_type_dict[split_type_name_rest][
                                     START_PAGE]
-                                split_type_end_page_transition_condition = f"zofar.hasCurrentSplitType(defrac, " \
-                                                                           f"episode_index, '{split_type_name_rest}')"
                                 generated_split_type_transitions_dict[split_type_end_page].append(
-                                    create_transition(split_type_end_page_transition_target,
-                                                      split_type_end_page_transition_condition))
+                                    create_transition(split_type_end_page_transition_target, transition_condition))
 
                 except KeyError as e:
                     print(f'Split Type Dictionary for Module "{module_name_str}", Split Type "{split_type_name}"')
