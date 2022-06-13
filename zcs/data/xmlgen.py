@@ -36,15 +36,24 @@ FRAGMENT_VARS_STEM = "FRAGMENT_VARS_STEM"
 FRAGMENT_VARS_COUNT = "FRAGMENT_VARS_COUNT"
 EPISODE_TYPE_STR = "EPISODE_TYPE_STR"
 
-ZOFAR_PAGE_TAG = "{http://www.his.de/zofar/xml/questionnaire}page"
-ZOFAR_TRANSITIONS_TAG = "{http://www.his.de/zofar/xml/questionnaire}transitions"
-ZOFAR_TRANSITION_TAG = "{http://www.his.de/zofar/xml/questionnaire}transition"
-ZOFAR_TRIGGERS_TAG = "{http://www.his.de/zofar/xml/questionnaire}triggers"
-ZOFAR_TRIGGER_TAG = "{http://www.his.de/zofar/xml/questionnaire}trigger"
-ZOFAR_SCRIPT_ITEM_TAG = "{http://www.his.de/zofar/xml/questionnaire}scriptItem"
-ZOFAR_ACTION_TAG = "{http://www.his.de/zofar/xml/questionnaire}action"
-ZOFAR_VARIABLES_TAG = "{http://www.his.de/zofar/xml/questionnaire}variables"
-ZOFAR_VARIABLE_TAG = "{http://www.his.de/zofar/xml/questionnaire}variable"
+ZOFAR_NAMESPACE = "{http://www.his.de/zofar/xml/questionnaire}"
+ZOFAR_PAGE_TAG = f"{ZOFAR_NAMESPACE}page"
+ZOFAR_TRANSITIONS_TAG = f"{ZOFAR_NAMESPACE}transitions"
+ZOFAR_TRANSITION_TAG = f"{ZOFAR_NAMESPACE}transition"
+ZOFAR_TRIGGERS_TAG = f"{ZOFAR_NAMESPACE}triggers"
+ZOFAR_TRIGGER_TAG = f"{ZOFAR_NAMESPACE}trigger"
+ZOFAR_SCRIPT_ITEM_TAG = f"{ZOFAR_NAMESPACE}scriptItem"
+ZOFAR_ACTION_TAG = f"{ZOFAR_NAMESPACE}action"
+ZOFAR_VARIABLES_TAG = f"{ZOFAR_NAMESPACE}variables"
+ZOFAR_VARIABLE_TAG = f"{ZOFAR_NAMESPACE}variable"
+ZOFAR_SECTION_TAG = f"{ZOFAR_NAMESPACE}section"
+ZOFAR_HEADER_TAG = f"{ZOFAR_NAMESPACE}header"
+ZOFAR_BODY_TAG = f"{ZOFAR_NAMESPACE}body"
+ZOFAR_TITLE_TAG = f"{ZOFAR_NAMESPACE}title"
+ZOFAR_DISPLAY_TAG = f"{ZOFAR_NAMESPACE}display"
+ZOFAR_TEXT_TAG = f"{ZOFAR_NAMESPACE}text"
+DISPLAY_NAMESPACE = "{http://www.dzhw.eu/zofar/xml/display}"
+ZOFAR_DISPLAY_TEXT_TAG = f"{DISPLAY_NAMESPACE}text"
 
 
 def create_script_item(val: str) -> etree.Element:
@@ -393,6 +402,24 @@ def split_start_end_pages_well_formed(input_dict: dict, pages_start_with: str,
     return True
 
 
+def debug_accordion(uid_str: str, title_text: str, body_text: str) -> etree.Element:
+    section_element = etree.Element(ZOFAR_SECTION_TAG, attrib={"uid": uid_str, "isaccordion": "true"})
+    header_element = etree.Element(ZOFAR_HEADER_TAG)
+    title_element = etree.Element(ZOFAR_TITLE_TAG, attrib={"uid": "t"})
+    title_element.text = f"#{{layout.BOLD_START}} {title_text} #{{layout.BOLD_END}}"
+    header_element.append(title_element)
+    section_element.append(header_element)
+
+    body_element = etree.Element(ZOFAR_BODY_TAG, attrib={"uid": "b"})
+    display_element = etree.Element(ZOFAR_DISPLAY_TAG, attrib={"uid": "debug"})
+    text_element = etree.Element(ZOFAR_DISPLAY_TEXT_TAG, attrib={"uid": "debugtext"})
+    text_element.text = body_text
+    display_element.append(text_element)
+    body_element.append(display_element)
+    section_element.append(body_element)
+    return section_element
+
+
 def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     etree.register_namespace('zofar', 'http://www.his.de/zofar/xml/questionnaire')
     etree.register_namespace('display', 'http://www.dzhw.eu/zofar/xml/display')
@@ -490,6 +517,21 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     for page in template_root.iterchildren(ZOFAR_PAGE_TAG):
         page_uid = get_element_attrib(page, 'uid')
+
+        for module_name_str, module_data in q.split_data[MODULES_DATA].items():
+            if page_uid.startswith(module_data[PAGE_NAME_STARTSWITH]):
+                debug_body_text = f"#{{layout.SMALL_START}}" \
+                                  f"#{{zofar.prettyPrintJsonHtml(zofar.str2jsonArr(" \
+                                  f"zofar.defrac(zofar.list({','.join(frag_var_list)}))))}}" \
+                                  f"#{{layout.SMALL_END}}"
+
+                for section_tag in page.find(ZOFAR_BODY_TAG).iterchildren():
+                    if "uid" in section_tag.attrib:
+                        if section_tag.attrib['uid'].startswith("automaticallygenerated"):
+                            section_tag.getparent().remove(section_tag)
+                page.find(ZOFAR_BODY_TAG).append(debug_accordion("automaticallygenerated",
+                                                                 "JSON Array",
+                                                                 debug_body_text))
 
         remove_mode_switch = False
         for triggers in page.iterchildren(ZOFAR_TRIGGERS_TAG):
