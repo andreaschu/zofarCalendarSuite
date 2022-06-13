@@ -1,14 +1,16 @@
 import json
 import pprint
 import re
-import copy
 import os.path
 from pathlib import Path
-from typing import Union, Dict, List, Optional, Any
+from typing import Union, List, Optional
 from lxml import etree
 import html
 from collections import defaultdict
-from zcs.data.xmlutil import read_questionnaire, Variable, Questionnaire
+from zcs.data.xmlutil import read_questionnaire
+
+XML_INPUT_PATH = os.environ.get('XML_INPUT_PATH')
+XML_OUTPUT_PATH = os.environ.get('XML_OUTPUT_PATH')
 
 AUTOMATION_COMMENT_START = "AUTOMATION_COMMENT_START"
 AUTOMATION_COMMENT_END = "AUTOMATION_COMMENT_END"
@@ -58,8 +60,10 @@ def create_transition(target_str: str, condition_str: str,
     return tmp_element
 
 
+""" # just a sketch (as yet)
 def gen_debug_body_section(header_elements: Optional[List[etree.Element]] = None,
                            body_elements: Optional[List[etree.Element]] = None) -> Optional[etree.Element]:
+
     if header_elements is None and body_elements is None:
         return None
 
@@ -85,6 +89,7 @@ def gen_debug_body_section(header_elements: Optional[List[etree.Element]] = None
     section_element.append(section_body_element)
 
     return section_element
+"""
 
 
 def section_header_display_text(content_text: str, index: int) -> etree.Element:
@@ -320,6 +325,7 @@ def _insert_fragment_variable_declarations(element_tree: etree.Element,
                                            fragment_var_stem: str,
                                            fragment_var_count: int):
     declared_fragment_var_set = set()
+
     for elm in element_tree.find(ZOFAR_VARIABLES_TAG).iterchildren():
         if is_comment_element(elm):
             continue
@@ -327,7 +333,7 @@ def _insert_fragment_variable_declarations(element_tree: etree.Element,
         var_type = get_element_attrib(elm, 'type')
         if var_name.startswith(fragment_var_stem):
             tmp_str = var_name[len(fragment_var_stem):]
-            count_match = re.match(r'^[0-9]+', tmp_str)
+            count_match = re.match(r'^\d+', tmp_str)
             if count_match is not None:
                 if int(count_match[0]) > fragment_var_count or var_name in declared_fragment_var_set:
                     elm.getparent().remove(elm)
@@ -387,24 +393,25 @@ def split_start_end_pages_well_formed(input_dict: dict, pages_start_with: str,
     return True
 
 
-def main():
+def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     etree.register_namespace('zofar', 'http://www.his.de/zofar/xml/questionnaire')
     etree.register_namespace('display', 'http://www.dzhw.eu/zofar/xml/display')
 
-    # load existing xml file
-    xml_file = Path(os.environ.get('XML_INPUT_PATH'))
+    # prepare paths
+    xml_input_path = Path(xml_input_path)
+    xml_output_path = Path(xml_output_path)
 
-    q = read_questionnaire(xml_file, with_comments=True)
+    # load existing QML file
+    q = read_questionnaire(xml_input_path, with_comments=True)
 
-    xml_template = bytes(xml_file.read_text(encoding='utf-8'), 'utf-8')
+    xml_template = bytes(xml_input_path.read_text(encoding='utf-8'), 'utf-8')
 
     parser = etree.XMLParser(remove_blank_text=True)
     template_root = etree.fromstring(xml_template, parser)
     for element in template_root.iterchildren():
         if is_comment_element(element):
-            pass
             # evaluate comments here, if needed
-    template_root_copy = copy.deepcopy(template_root)
+            pass
 
     frag_var_stem = str(q.split_data[DATA][FRAGMENT_VARS_STEM])
     frag_var_count = int(q.split_data[DATA][FRAGMENT_VARS_COUNT])
@@ -477,22 +484,6 @@ def main():
                     pprint.pprint(module_split_type_dict)
                     raise KeyError(e)
 
-            # ToDo run trigger generation
-
-            # ToDo iterate over module_split_pages_list
-            #  insert split trigger (split_type_dict, parsing, splitting)
-
-            # ToDo process module_split_transitions_list
-            #  split_type_transitions = []
-            #  on those split pages:
-            #    if episode_index != -1
-            #    for SPLIT_TYPE in
-            #    && hasCurrentSplit(json_arr.get(episode_index), CURRENT_SPLIT_TYPE)
-            #    && isType(json_arr.get(episode_index), EPISODE_TYPE_STR):
-            #    for split_type, transition_target in SPLIT_TRANSITIONS_LIST.items():
-            #      generate_transition(transition_target["START_PAGE"], CURRENT_SPLIT_TYPE, module_type_str)
-            pass
-
     _insert_fragment_variable_declarations(template_root, frag_var_stem, frag_var_count)
 
     processed_pages_list = []
@@ -525,12 +516,12 @@ def main():
                         if page_uid in generated_current_split_removal_trigger:
                             for split_type_to_rm in generated_current_split_removal_trigger[page_uid]:
                                 auto_generate_split_type_removal_trigger(xml_element=trigger,
-                                                                         input_xml=xml_file,
+                                                                         input_xml=xml_input_path,
                                                                          split_type_to_remove=split_type_to_rm)
 
                         # 2nd: other trigger
                         if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
-                            auto_generate_regular_trigger(xml_element=trigger, input_xml=xml_file,
+                            auto_generate_regular_trigger(xml_element=trigger, input_xml=xml_input_path,
                                                           input_page_uid=page_uid)
 
                         for module_name_str, module_data in q.split_data[MODULES_DATA].items():
@@ -575,9 +566,9 @@ def main():
 
     output_xml_string = '\n'.join([re.sub(r'^ +', _duplicate_str, line) for line in output_xml_string.split('\n')])
 
-    output_xml_file = Path(os.environ['XML_OUTPUT_PATH'])
+    output_xml_file = Path(xml_output_path)
     output_xml_file.write_text(output_xml_string, 'utf-8')
 
 
 if __name__ == '__main__':
-    main()
+    main(XML_INPUT_PATH, XML_OUTPUT_PATH)

@@ -3,7 +3,7 @@ from typing import Dict, List, Union, Optional, Tuple, Any
 from xml.etree import ElementTree
 from dataclasses import dataclass, field
 from pathlib import Path
-from zcs.util import flatten
+from zcs.util.util import flatten
 import re
 
 ns = {'zofar': 'http://www.his.de/zofar/xml/questionnaire'}

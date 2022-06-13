@@ -1,3 +1,5 @@
+
+"""
 from postgresqlHelper.postgresqlHelper import postgresqlConnector
 import postgresqlHelper.sqlQueries
 import os
@@ -25,3 +27,5 @@ if __name__ == '__main__':
     length_of_json_in_db = len(combined_bytes)
     raw_json = hexdecode_and_decompress(combined_bytes)
     print()
+
+"""

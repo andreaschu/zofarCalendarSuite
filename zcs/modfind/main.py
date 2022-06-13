@@ -1,13 +1,12 @@
-from zcs.data.xml import Questionnaire
+from zcs.data.xmlutil import Questionnaire
 from tkinter.filedialog import askopenfilename
-from zcs.data.xml import read_questionnaire
-from collections import defaultdict
+from zcs.data.xmlutil import read_questionnaire
 import networkx as nx
 from typing import Tuple, Dict, List
 
 
 def get_cal_modules(q: Questionnaire,
-                    calendar_page_uid: str = 'calendar',
+                    cal_page_uid: str = 'calendar',
                     mod_prefix_len: int = 2) -> Tuple[Dict[str, List[str]], Dict[str, List[str]]]:
     def _get_mod_pages(g: nx.DiGraph, calendar_page_uid: str) -> list:
         # determine all pages as module page candidates that can be reached via a single transition from the calendar page
@@ -17,7 +16,6 @@ def get_cal_modules(q: Questionnaire,
 
     def _create_di_graph(questionnaire: Questionnaire) -> nx.DiGraph:
         g = nx.DiGraph()
-        dict_of_modules = defaultdict(list)
         for page in questionnaire.pages:
             for transition in page.transitions:
                 g.add_edge(page.uid, transition.target_uid)
@@ -33,15 +31,15 @@ def get_cal_modules(q: Questionnaire,
 
         return dict_of_modules
 
-    g = _create_di_graph(q)
+    di_graph = _create_di_graph(q)
 
     # determine all those candidates that have at least one simple path back to the calendar
-    list_of_mod_pages = _get_mod_pages(g, calendar_page_uid)
-    dict_of_modules = _mod_prefix_dict(list_of_mod_pages, mod_prefix_len)
+    list_of_mod_pages = _get_mod_pages(di_graph, cal_page_uid)
+    dictionary_of_modules = _mod_prefix_dict(list_of_mod_pages, mod_prefix_len)
 
     dict_of_submodules = _mod_prefix_dict(list_of_mod_pages, mod_prefix_len + 1)
 
-    return dict_of_modules, dict_of_submodules
+    return dictionary_of_modules, dict_of_submodules
 
 
 def main():
@@ -49,7 +47,7 @@ def main():
 
     modules_dict, submodules_dict = get_cal_modules(read_questionnaire(input_xml), 'calendar', 3)
 
-    breakpoint()
+    print()
 
 
 if __name__ == '__main__':

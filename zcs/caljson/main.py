@@ -5,8 +5,7 @@ import string
 import math
 from pathlib import Path
 import os
-import shutil
-from tkinter.filedialog import asksaveasfilename
+
 
 
 class Question_QML_generator:
