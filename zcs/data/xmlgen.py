@@ -8,7 +8,7 @@ from typing import Union, List, Optional
 from lxml import etree
 import html
 from collections import defaultdict
-from zcs.data.xmlutil import read_questionnaire
+from zcs.data.xmlutil import read_questionnaire, Transition
 
 XML_INPUT_PATH = os.environ.get('XML_INPUT_PATH')
 XML_OUTPUT_PATH = os.environ.get('XML_OUTPUT_PATH')
@@ -43,6 +43,8 @@ FRAGMENT_VARS_COUNT = "FRAGMENT_VARS_COUNT"
 EPISODE_TYPE_STR = "EPISODE_TYPE_STR"
 
 ZOFAR_NAMESPACE = "{http://www.his.de/zofar/xml/questionnaire}"
+ZOFAR_QUESTIONNAIRE_TAG = f"{ZOFAR_NAMESPACE}questionnaire"
+ZOFAR_NAME_TAG = f"{ZOFAR_NAMESPACE}name"
 ZOFAR_PAGE_TAG = f"{ZOFAR_NAMESPACE}page"
 ZOFAR_TRANSITIONS_TAG = f"{ZOFAR_NAMESPACE}transitions"
 ZOFAR_TRANSITION_TAG = f"{ZOFAR_NAMESPACE}transition"
@@ -118,31 +120,32 @@ def automation_comment_switch(elemnt: etree.Element) -> str:
     return AUTOMATION_COMMENT_NONE
 
 
+def create_delete_split_type_trigger_element(split_type: str, frag_var_ls: List[str]) -> etree.Element:
+    new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_ls)}),zofar.jsonArr2str(json_array))"
+    new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
+                                       attrib={"command": new_action_command,
+                                               "onExit": "true",
+                                               "direction": "forward"})
+    tmp_comment = etree.Comment(
+        f"automatically generated trigger for removing split type '{split_type}' from 'current_split' of episode")
+    new_action_element.insert(0, tmp_comment)
+    script_item_str_list = [
+        f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
+        "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
+        "zofar.assign('toPersist',zofar.map())",
+        f"zofar.deleteCurrentSplitType(json_array,zofar.toInteger(episode_index.value),'{split_type}')",
+        "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
+        "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
+
+    [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
+     create_script_item is not None]
+
+    return new_action_element
+
+
 def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
                                              input_xml: Union[str, Path],
                                              split_type_to_remove: str) -> None:
-    def _create_save_trigger_element(split_type: str, frag_var_ls: List[str]) -> etree.Element:
-        new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_list)}),zofar.jsonArr2str(json_array))"
-        new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
-                                           attrib={"command": new_action_command,
-                                                   "onExit": "true",
-                                                   "direction": "forward"})
-        tmp_comment = etree.Comment(
-            f"automatically generated trigger for removing split type '{split_type}' from 'current_split' of episode")
-        new_action_element.insert(0, tmp_comment)
-        script_item_str_list = [
-            f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
-            "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
-            "zofar.assign('toPersist',zofar.map())",
-            f"zofar.deleteCurrentSplitType(json_array,zofar.toInteger(episode_index.value),'{split_type}')",
-            "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
-            "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
-
-        [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
-         create_script_item is not None]
-
-        return new_action_element
-
     q = read_questionnaire(input_xml, with_comments=True)
 
     frag_var_stem = str(q.split_data[DATA][FRAGMENT_VARS_STEM])
@@ -151,17 +154,24 @@ def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
     frag_var_list = [frag_var_stem + str(i + 1) for i in
                      range(frag_var_count)]
 
-    xml_element.addprevious(_create_save_trigger_element(split_type_to_remove, frag_var_list))
+    xml_element.addprevious(create_delete_split_type_trigger_element(split_type_to_remove, frag_var_list))
 
 
-def auto_generate_split_episode_trigger(xml_element: etree.Element,
-                                        split_type_dict: dict,
-                                        frag_vars_list: List[str]) -> None:
+def auto_generate_split_episode_trigger_element(split_type_dict: dict,
+                                                frag_vars_list: List[str],
+                                                condition: Optional[str] = None) -> etree.Element:
     new_action_command = f"zofar.frac(zofar.list({','.join(frag_vars_list)}),zofar.jsonArr2str(json_array))"
-    new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
-                                       attrib={"command": new_action_command,
-                                               "onExit": "true",
-                                               "direction": "forward"})
+    if condition is None:
+        new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
+                                           attrib={"command": new_action_command,
+                                                   "onExit": "true",
+                                                   "direction": "forward"})
+    else:
+        new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
+                                           attrib={"command": new_action_command,
+                                                   "onExit": "true",
+                                                   "direction": "forward",
+                                                   "condition": condition})
     tmp_comment = etree.Comment(
         f"automatically generated trigger for splitting the episode")
     new_action_element.insert(0, tmp_comment)
@@ -173,23 +183,34 @@ def auto_generate_split_episode_trigger(xml_element: etree.Element,
         f"zofar.assign('split_type_dict',zofar.parseJsonObj('{escaped_split_type_dict_json}'))"]
 
     if DEBUG:
-        script_item_str_list.append("zofar.log('split_type_dict: '.concat(split_type_dict),sessionController.participant)")
-        script_item_str_list.append("zofar.log('json_array prior to split: '.concat(json_array),sessionController.participant)")
-    script_item_str_list.append("zofar.assign('index_json_map', zofar.splitEpisode(json_array,zofar.toInteger(episode_index.value), split_type_dict))")
+        script_item_str_list.append(
+            "zofar.log('split_type_dict: '.concat(split_type_dict),sessionController.participant)")
+        script_item_str_list.append(
+            "zofar.log('json_array prior to split: '.concat(json_array),sessionController.participant)")
+    script_item_str_list.append(
+        "zofar.assign('index_json_map', zofar.splitEpisode(json_array,zofar.toInteger(episode_index.value), split_type_dict))")
     if DEBUG:
-        script_item_str_list.append("zofar.log('index_json_map after split: '.concat(index_json_map),sessionController.participant)")
+        script_item_str_list.append(
+            "zofar.log('index_json_map after split: '.concat(index_json_map),sessionController.participant)")
     script_item_str_list.append("zofar.assign('newSplitIndex',index_json_map['index'])")
     if DEBUG:
-        script_item_str_list.append("zofar.log('newSplitIndex after split: '.concat(newSplitIndex),sessionController.participant)")
+        script_item_str_list.append(
+            "zofar.log('newSplitIndex after split: '.concat(newSplitIndex),sessionController.participant)")
     script_item_str_list.append("zofar.assign('json_array',index_json_map['episodes'])")
     if DEBUG:
-        script_item_str_list.append("zofar.log('json_array after split: '.concat(json_array),sessionController.participant)")
+        script_item_str_list.append(
+            "zofar.log('json_array after split: '.concat(json_array),sessionController.participant)")
     script_item_str_list.append("zofar.setVariableValue(episode_index,newSplitIndex)")
 
     [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
      create_script_item is not None]
+    return new_action_element
 
-    return xml_element.addprevious(new_action_element)
+
+def auto_generate_split_episode_trigger(xml_element: etree.Element,
+                                        split_type_dict: dict,
+                                        frag_vars_list: List[str]) -> None:
+    return xml_element.addprevious(auto_generate_split_episode_trigger_element(split_type_dict, frag_vars_list))
 
 
 def auto_generate_regular_trigger(xml_element: etree.Element,
@@ -416,6 +437,11 @@ def debug_accordion(uid_str: str, title_text: str, body_text: str) -> etree.Elem
     return section_element
 
 
+def has_current_split_zofar_function(split_type_name: str, frag_var_list: list) -> str:
+    return f"zofar.hasCurrentSplitType(zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_list)}))" \
+           f"), zofar.toInteger(episode_index.value), '{split_type_name}')"
+
+
 def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     etree.register_namespace('zofar', 'http://www.his.de/zofar/xml/questionnaire')
     etree.register_namespace('display', 'http://www.dzhw.eu/zofar/xml/display')
@@ -445,10 +471,9 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     # ToDo run frag var declaration / check
 
-    # this is where we store the generated transitions in correct order
-    generated_split_type_transitions_dict = defaultdict(list)
-    generated_current_split_removal_trigger = defaultdict(list)
-    generated_split_episode_trigger = defaultdict(list)
+    page_transitions_lists = {}
+    page_trigger_lists = defaultdict(list)
+    # page_trigger_lists = defaultdict(list)
 
     if q.split_data[MODULES_DATA]:
         # iterate over all modules
@@ -463,53 +488,184 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                                          [page.uid for page in q.pages])
                 module_split_type_order = [split_type for split_type in module_data[SPLIT_TYPE_ORDER] if
                                            split_type.strip() != '']
-                module_end_pages = module_data[MODULE_END_PAGES]
+                module_end_pages = [page for page in module_data[MODULE_END_PAGES] if page.strip() != ""]
 
+                # soundness check for split types (declaration data and split type order should show the same entries)
                 split_types_not_found = [split_type for split_type in module_data[SPLIT_TYPE_ORDER] if
                                          split_type not in module_split_type_dict.keys() and split_type.strip() != '']
                 if split_types_not_found:
                     raise KeyError(
                         f'Split Type(s) from {SPLIT_TYPE_ORDER} not found in {SPLIT_TYPE_DICT}: "{split_types_not_found}"')
+
+                # soundness check for split type end pages (in every split type there must be at least one end page in END_PAGES without any conditions)
+                for split_type, split_type_data in module_split_type_dict.items():
+                    if split_type_data[SPLIT_VAR] == [{"": ""}]:
+                        continue
+                    if not any(
+                            [end_page for end_page, end_page_val in split_type_data[END_PAGES].items() if
+                             len(end_page_val) == 0]):
+                        raise KeyError(
+                            f'"{split_type=}" does not have any end pages without conditions! There must be at least one page in "{END_PAGES}" without conditions.')
+
             except KeyError as e:
                 print(f'Module Data Dictionary for Module "{module_name_str}"')
                 pprint.pprint(module_data)
                 raise KeyError(e)
 
-            # iterate over all split types in SPLIT_TYPE_DICT of the current module
-            for list_index, split_type_name in enumerate(module_split_type_order):
-                try:
-                    split_type_data = module_split_type_dict[split_type_name]
-                    if split_type_name not in module_split_type_order:
-                        raise KeyError(
-                            f'Split Type from {SPLIT_TYPE_DICT} not found in {SPLIT_TYPE_ORDER}: "{split_type_name}"')
-                    transition_target = split_type_data[START_PAGE]
-                    split_type_end_pages_list = [page for page in split_type_data[END_PAGES] if page != '']
-                    # this is the condition we use for module end pages as well as current split end pages
-                    transition_condition = f"zofar.hasCurrentSplitType(" \
-                                           f"zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_list)}))" \
-                                           f"), zofar.toInteger(episode_index.value), '{split_type_name}')"
-                    for page in module_end_pages:
-                        generated_split_type_transitions_dict[page].append(
-                            create_transition(transition_target, transition_condition))
+            module_end_page_transitions_list = []
+            for end_page in module_end_pages:
 
-                    for split_type_end_page in split_type_end_pages_list:
-                        # add triggers:
-                        generated_current_split_removal_trigger[split_type_end_page].append(split_type_name)
-                        # add transitions:
-                        if (list_index + 1) < len(split_type_end_pages_list):
-                            for split_type_name_rest in module_split_type_order[list_index + 1:]:
-                                split_type_end_page_transition_target = module_split_type_dict[split_type_name_rest][
-                                    START_PAGE]
-                                generated_split_type_transitions_dict[split_type_end_page].append(
-                                    create_transition(split_type_end_page_transition_target, transition_condition))
+                tmp_pages = [page for page in q.pages if page.uid == end_page]
+                if len(tmp_pages) == 0:
+                    raise ValueError(f'Page "{end_page}" not found in QML!')
+                end_page_obj = tmp_pages[0]
 
-                except KeyError as e:
-                    print(f'Split Type Dictionary for Module "{module_name_str}", Split Type "{split_type_name}"')
-                    pprint.pprint(module_split_type_dict)
-                    raise KeyError(e)
+                # first run: initialize the list
+                if module_end_page_transitions_list == []:
+                    [module_end_page_transitions_list.append(transition) for transition in end_page_obj.transitions]
+                # after first run: ensure that all transitions on all end pages are identical
+                else:
+                    if [transition for transition in end_page_obj.transitions] != module_end_page_transitions_list:
+                        print(f'page: "{end_page}":')
+                        pprint.pprint(end_page_obj.transitions)
+                        print(f'previos end_page(s):')
+                        pprint.pprint(module_end_page_transitions_list)
+                        raise AssertionError(
+                            f'Transitions from module_end_pages "{module_end_pages}" are not the same over all pages!')
+
+            module_split_transitions_list = []
+
+            for split_type, split_type_data in module_split_type_dict.items():
+                if split_type_data[START_PAGE].strip() != "":
+                    target_uid = split_type_data[START_PAGE]
+                    condition = f"zofar.hasCurrentSplitType(zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list(" \
+                                f"{','.join(frag_var_list)}))), zofar.toInteger(episode_index.value), '{split_type}')"
+                    module_split_transitions_list.append(Transition(target_uid, condition))
+
+            for split_type in module_split_type_order:
+                split_type_start_page = module_data[SPLIT_TYPE_DICT][split_type][START_PAGE]
+                if split_type_start_page.strip() == "":
+                    continue
+
+                split_type_end_pages_list = [page for page in
+                                             module_data[SPLIT_TYPE_DICT][split_type][END_PAGES].keys()]
+
+                for end_page in split_type_end_pages_list:
+                    condition = module_data[SPLIT_TYPE_DICT][split_type][END_PAGES][end_page]
+                    # deal with triggers & transitions
+                    #
+                    #  end page candidates
+                    if condition != {}:
+                        remove_from_current_split_type_trigger = \
+                            create_delete_split_type_trigger_element(split_type,
+                                                                     frag_var_list)
+                        page_candidate_condition = " and ".join(
+                            [f"({key}.value == '{val}')" for key, val in condition.items()])
+
+                        # trigger for deleteCurrentSplit()
+                        remove_from_current_split_type_trigger.attrib["condition"] = page_candidate_condition
+                        page_trigger_lists[end_page].append(remove_from_current_split_type_trigger)
+
+                        # trigger for splitEpisode()
+                        split_episode_trigger = auto_generate_split_episode_trigger_element(split_type, frag_var_list,
+                                                                                            page_candidate_condition)
+
+                        page_trigger_lists[end_page].append(split_episode_trigger)
+
+                        # deal with transitions
+                        for iter_split_type in module_split_type_order:
+                            iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
+
+                            iter_condition = " and ".join(
+                                [has_current_split_zofar_function(iter_split_type, frag_var_list),
+                                 page_candidate_condition])
+
+                            if end_page in page_transitions_lists:
+                                page_transitions_lists[end_page].append(create_transition(iter_start_page,
+                                                                                          iter_condition))
+                            else:
+                                page_transitions_lists[end_page] = [create_transition(iter_start_page,
+                                                                                      iter_condition)]
+
+
+                    # ToDo: remove left-of-current-split-type split_types from currentSplit via trigger on split type
+                    #  start page of right-of-current-split-types
+
+                    # ToDo: only split on split type end page if "currentSplit" exists and
+                    #  if current episode DOES NOT HAVE any split-type-right-of-current-split-type
+
+                    # ToDo: add method deleteCurrentSplit(arr, index, list_of_strings)
+                    # ToDo: add method hasCurrentSplit(arr, index, list_of_strings)
+
+
+                    #  end pages
+                    else:
+                        remove_from_current_split_type_trigger = \
+                            create_delete_split_type_trigger_element(split_type,
+                                                                     frag_var_list)
+                        page_trigger_lists[end_page].append(remove_from_current_split_type_trigger)
+
+                        # trigger for splitEpisode()
+                        split_episode_trigger = auto_generate_split_episode_trigger_element(split_type, frag_var_list)
+                        page_trigger_lists[end_page].append(split_episode_trigger)
+
+                        # deal with transitions
+                        for iter_split_type in module_split_type_order:
+                            iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
+                            if end_page in page_transitions_lists:
+                                page_transitions_lists[end_page].append(create_transition(iter_start_page,
+                                                                                          has_current_split_zofar_function(
+                                                                                              iter_split_type,
+                                                                                              frag_var_list)))
+                            else:
+                                page_transitions_lists[end_page] = [create_transition(iter_start_page,
+                                                                                      has_current_split_zofar_function(
+                                                                                          iter_split_type,
+                                                                                          frag_var_list))]
+                    #
+                    # for module_end_transition in module_end_page_transitions_list:
+                    #     if module_end_transition.condition is not None:
+                    #         transition_element = create_transition(module_end_transition.target_uid,
+                    #                                                module_end_transition.condition)
+                    #     else:
+                    #         transition_element = create_transition(module_end_transition.target_uid, "true")
+                    #
+                    #     if end_page in page_transitions_lists:
+                    #         page_transitions_lists[end_page].append(transition_element)
+                    #     else:
+                    #         page_transitions_lists[end_page] = [transition_element]
+
+            # also process module end pages
+            for module_end_page in module_end_pages:
+                if module_end_page not in page_trigger_lists.keys():
+                    # trigger for splitEpisode()
+                    split_episode_trigger = auto_generate_split_episode_trigger_element(split_type, frag_var_list)
+                    page_trigger_lists[module_end_page].append(split_episode_trigger)
+                if module_end_page not in page_transitions_lists.keys():
+                    # deal with transitions
+                    if module_end_page in page_transitions_lists:
+                        page_transitions_lists[module_end_page].append(create_transition(split_type_start_page,
+                                                                                         has_current_split_zofar_function(
+                                                                                             split_type,
+                                                                                             frag_var_list)))
+                    else:
+                        page_transitions_lists[module_end_page] = [create_transition(split_type_start_page,
+                                                                                     has_current_split_zofar_function(
+                                                                                         split_type,
+                                                                                         frag_var_list))]
 
     _insert_fragment_variable_declarations(template_root, frag_var_stem, frag_var_count)
 
+    # delete old split data dictionary
+    for element in template_root.iter():
+        if is_comment_element(element):
+            try:
+                split_data_dict = json.loads(element.text.strip())
+                if 'SPLIT_DATA' in split_data_dict.keys():
+                    element.addprevious(etree.Comment(json.dumps(split_data_dict, indent='  ')))
+                    element.getparent().remove(element)
+            except json.JSONDecodeError as e:
+                print(e)
     processed_pages_list = []
 
     def remove_all_ascii_art_comments(input_root: etree.Element):
@@ -525,54 +681,9 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
         for ascii_art_comment in ascii_art_comments:
             page.addprevious(ascii_art_comment)
 
+        # DEBUG INFOS
         for module_name_str, module_data in q.split_data[MODULES_DATA].items():
             if page_uid.startswith(module_data[PAGE_NAME_STARTSWITH]):
-                episode_overview_text = f"#{{layout.BREAK}}" \
-                                        f"Token: " \
-                                        f"#{{layout.BOLD_START}}#{{sessionController.participant.token}}" \
-                                        f"#{{layout.BOLD_END}}" \
-                                        f"#{{layout.BREAK}}" \
-                                        f"Zeitstempel Sessionbeginn: #{{zofar.valueOf(startPoint)}}" \
-                                        f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                                        f"episode_index: #{{episode_index.value}}" \
-                                        f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                                        f"#{{layout.UNDERLINED_START}}Zeitraum der aktuellen Episode: " \
-                                        f"#{{layout.UNDERLINED_END}}#{{layout.BREAK}}" \
-                                        f"v_startmonth: #{{zofar.labelOf(v_startmonth)}}#{{layout.BREAK}}" \
-                                        f"v_startyear: #{{zofar.labelOf(v_startyear)}}#{{layout.BREAK}}" \
-                                        f"v_endmonth: #{{zofar.labelOf(v_endmonth)}}#{{layout.BREAK}}" \
-                                        f"v_endyear: #{{zofar.labelOf(v_endyear)}}#{{layout.BREAK}}" \
-                                        f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                                        f"complete: #{{complete.value}} #{{layout.BREAK}}" \
-                                        f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                                        f"Episode Counter (Ausbildung: v_episodeCount): #{{v_episodeCount}}" \
-                                        f"#{{layout.BREAK}}" \
-                                        f"Episode Counter (fertige Ausbildungsepisoden: v_episodeCount_done): " \
-                                        f"#{{v_episodeCount_done}}" \
-                                        f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                                        f"#{{layout.UNDERLINED_START}}Array: #{{layout.UNDERLINED_END}}" \
-                                        f"#{{layout.BREAK}}" \
-                                        f"#{{zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_list)})))}}" \
-                                        f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                                        f"Back to: " \
-                                        f"#{{layout.ITALIC_START}}" \
-                                        f"#{{navigatorBean.getBackwardViewID()}}" \
-                                        f"#{{layout.ITALIC_END}}"
-
-                debug_accordion_json_text = f"#{{layout.SMALL_START}}" \
-                                            f"#{{zofar.prettyPrintJsonHtml(zofar.str2jsonArr(" \
-                                            f"zofar.defrac(zofar.list({','.join(frag_var_list)}))))}}" \
-                                            f"#{{layout.SMALL_END}}"
-                debug_accordion_episode_text = f"#{{layout.SMALL_START}}" \
-                                               f"#{{zofar.prettyPrintJsonHtml(zofar.getJson(zofar.str2jsonArr(" \
-                                               f"zofar.defrac(zofar.list({','.join(frag_var_list)}))), " \
-                                               f"zofar.toInteger(episode_index.value)))}}" \
-                                               f"#{{layout.SMALL_END}}"
-
-                split_type_dict_escaped = json.dumps(module_data[SPLIT_TYPE_DICT]).replace('"', '*')
-                debug_accordion_split_type_text = f"#{{layout.SMALL_START}}" \
-                                                  f"#{{zofar.prettyPrintJsonHtml(" \
-                                                  f"zofar.parseJsonObj('{split_type_dict_escaped}'))}}"
 
                 # remove previously generated debug section
                 for section_tag in page.find(ZOFAR_BODY_TAG).iterchildren():
@@ -581,6 +692,53 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             section_tag.getparent().remove(section_tag)
 
                 if DEBUG:
+                    episode_overview_text = f"#{{layout.BREAK}}" \
+                                            f"Token: " \
+                                            f"#{{layout.BOLD_START}}#{{sessionController.participant.token}}" \
+                                            f"#{{layout.BOLD_END}}" \
+                                            f"#{{layout.BREAK}}" \
+                                            f"Zeitstempel Sessionbeginn: #{{zofar.valueOf(startPoint)}}" \
+                                            f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
+                                            f"episode_index: #{{episode_index.value}}" \
+                                            f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
+                                            f"#{{layout.UNDERLINED_START}}Zeitraum der aktuellen Episode: " \
+                                            f"#{{layout.UNDERLINED_END}}#{{layout.BREAK}}" \
+                                            f"v_startmonth: #{{zofar.labelOf(v_startmonth)}}#{{layout.BREAK}}" \
+                                            f"v_startyear: #{{zofar.labelOf(v_startyear)}}#{{layout.BREAK}}" \
+                                            f"v_endmonth: #{{zofar.labelOf(v_endmonth)}}#{{layout.BREAK}}" \
+                                            f"v_endyear: #{{zofar.labelOf(v_endyear)}}#{{layout.BREAK}}" \
+                                            f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
+                                            f"complete: #{{complete.value}} #{{layout.BREAK}}" \
+                                            f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
+                                            f"Episode Counter (Ausbildung: v_episodeCount): #{{v_episodeCount}}" \
+                                            f"#{{layout.BREAK}}" \
+                                            f"Episode Counter (fertige Ausbildungsepisoden: v_episodeCount_done): " \
+                                            f"#{{v_episodeCount_done}}" \
+                                            f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
+                                            f"#{{layout.UNDERLINED_START}}Array: #{{layout.UNDERLINED_END}}" \
+                                            f"#{{layout.BREAK}}" \
+                                            f"#{{zofar.str2jsonArr(zofar.defrac(zofar.list({','.join(frag_var_list)})))}}" \
+                                            f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
+                                            f"Back to: " \
+                                            f"#{{layout.ITALIC_START}}" \
+                                            f"#{{navigatorBean.getBackwardViewID()}}" \
+                                            f"#{{layout.ITALIC_END}}"
+
+                    debug_accordion_json_text = f"#{{layout.SMALL_START}}" \
+                                                f"#{{zofar.prettyPrintJsonHtml(zofar.str2jsonArr(" \
+                                                f"zofar.defrac(zofar.list({','.join(frag_var_list)}))))}}" \
+                                                f"#{{layout.SMALL_END}}"
+                    debug_accordion_episode_text = f"#{{layout.SMALL_START}}" \
+                                                   f"#{{zofar.prettyPrintJsonHtml(zofar.getJson(zofar.str2jsonArr(" \
+                                                   f"zofar.defrac(zofar.list({','.join(frag_var_list)}))), " \
+                                                   f"zofar.toInteger(episode_index.value)))}}" \
+                                                   f"#{{layout.SMALL_END}}"
+
+                    split_type_dict_escaped = json.dumps(module_data[SPLIT_TYPE_DICT]).replace('"', '*')
+                    debug_accordion_split_type_text = f"#{{layout.SMALL_START}}" \
+                                                      f"#{{zofar.prettyPrintJsonHtml(" \
+                                                      f"zofar.parseJsonObj('{split_type_dict_escaped}'))}}"
+
                     # add debug section accordion
                     page.find(ZOFAR_BODY_TAG).append(debug_accordion("automaticallygenerated01",
                                                                      "Episoden Überblick",
@@ -620,25 +778,13 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         remove_mode_switch = False
 
                         # input new trigger - edit in-place, does not return anything
-                        # 1st: remove split types from episode JSON
-
-                        if page_uid in generated_current_split_removal_trigger:
-                            for split_type_to_rm in generated_current_split_removal_trigger[page_uid]:
-                                auto_generate_split_type_removal_trigger(xml_element=trigger,
-                                                                         input_xml=xml_input_path,
-                                                                         split_type_to_remove=split_type_to_rm)
-
-                        # 2nd: other trigger
+                        # regular
                         if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
                             auto_generate_regular_trigger(xml_element=trigger, input_xml=xml_input_path,
                                                           input_page_uid=page_uid)
-
-                        for module_name_str, module_data in q.split_data[MODULES_DATA].items():
-                            if page_uid.startswith(module_data[PAGE_NAME_STARTSWITH]):
-                                if page_uid in module_data[MODULE_END_PAGES]:
-                                    auto_generate_split_episode_trigger(xml_element=trigger,
-                                                                        split_type_dict=module_data[SPLIT_TYPE_DICT],
-                                                                        frag_vars_list=frag_var_list)
+                        # other trigger (deleteCurrentSplit, splitEpisode)
+                        if page_uid in page_trigger_lists.keys():
+                            [trigger.addprevious(page_trigger) for page_trigger in page_trigger_lists[page_uid]]
                         break
 
                     if remove_mode_switch:
@@ -659,14 +805,14 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             if comment_candidate.text == "AUTOMATICALLY GENERATED":
                                 transition.getparent().remove(transition)
 
-        # deal with transitions - add new transitions
-        if page_uid in generated_split_type_transitions_dict.keys():
+        if page_uid in page_transitions_lists.keys():
             if page.find(ZOFAR_TRANSITIONS_TAG) is None:
                 raise ValueError(f'no "transitons" tag found on page: {page_uid}')
             else:
                 transitions_element = page.find(ZOFAR_TRANSITIONS_TAG)
-
-                for transition_index, transition_element in enumerate(generated_split_type_transitions_dict[page_uid]):
+                # ToDo Debug
+                x = [etree.tostring(tran_elm) for tran_elm in page_transitions_lists[page_uid]]
+                for transition_index, transition_element in enumerate(page_transitions_lists[page_uid]):
                     transitions_element.insert(transition_index, transition_element)
 
     print(f'{processed_pages_list=}')

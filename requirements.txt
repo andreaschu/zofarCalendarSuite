@@ -2,3 +2,4 @@ snappy~=3.0.3
 lxml~=4.9.0
 networkx==2.8.3
 matplotlib~=3.5.2
+art~=5.6
