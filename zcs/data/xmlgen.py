@@ -455,7 +455,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     xml_template = bytes(xml_input_path.read_text(encoding='utf-8'), 'utf-8')
 
-    parser = etree.XMLParser(remove_blank_text=True)
+    parser = etree.XMLParser(remove_blank_text=True, encoding='utf-8')
     template_root = etree.fromstring(xml_template, parser)
     for element in template_root.iterchildren():
         if is_comment_element(element):
@@ -587,7 +587,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                 page_transitions_lists[end_page] = [create_transition(iter_start_page,
                                                                                       iter_condition)]
 
-
                     # ToDo: remove left-of-current-split-type split_types from currentSplit via trigger on split type
                     #  start page of right-of-current-split-types
 
@@ -596,7 +595,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
                     # ToDo: add method deleteCurrentSplit(arr, index, list_of_strings)
                     # ToDo: add method hasCurrentSplit(arr, index, list_of_strings)
-
 
                     #  end pages
                     else:
@@ -820,6 +818,14 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     output_xml_string = etree.tostring(template_root, pretty_print=True, method='xml').decode('utf-8')
 
     output_xml_string = '\n'.join([re.sub(r'^ +', _duplicate_str, line) for line in output_xml_string.split('\n')])
+    matches = re.findall(r'(&#.{,5};)', output_xml_string)
+    matches_set = set(matches)
+    if len(matches_set) > 0:
+        print('\n' + f'The following characters will be replaced:')
+        for match in matches_set:
+            print(f'    {match=} -> {html.unescape(match)}')
+            output_xml_string = output_xml_string.replace(match, html.unescape(match))
+        print()
 
     output_xml_file = Path(xml_output_path)
     output_xml_file.write_text(output_xml_string, 'utf-8')
