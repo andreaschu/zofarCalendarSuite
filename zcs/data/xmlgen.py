@@ -603,7 +603,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     # ToDo: add method hasCurrentSplit(arr, index, list_of_strings) -> X Done X
 
                     # ToDo: deal with split triggers - add check of episode_index
-                    #  unklar, was dort die implikationen sind... bzw. was ich dort immerhin meine
+                    #  unklar, was dort die implikationen sind... bzw. was ich dort tatsächlich meine (??)
 
                     #  end pages
                     else:
