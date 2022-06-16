@@ -13,10 +13,10 @@ from zcs.data.xmlutil import read_questionnaire, Transition
 XML_INPUT_PATH = os.environ.get('XML_INPUT_PATH')
 XML_OUTPUT_PATH = os.environ.get('XML_OUTPUT_PATH')
 
+DEBUG = False
 if 'DEBUG' in os.environ:
-    DEBUG = True
-else:
-    DEBUG = False
+    if os.environ['DEBUG'].upper().strip() == 'TRUE':
+        DEBUG = True
 
 AUTOMATION_COMMENT_START = "AUTOMATION_COMMENT_START"
 AUTOMATION_COMMENT_END = "AUTOMATION_COMMENT_END"
@@ -109,6 +109,10 @@ def is_comment_element(elemnt: etree.Element) -> bool:
             if elemnt.tag.__code__.co_name:
                 return True
     return False
+
+
+def find_all_html_escaped_chars(s: str) -> set:
+    return set(re.findall(r'(&#.{,5};)', s))
 
 
 def automation_comment_switch(elemnt: etree.Element) -> str:
@@ -453,7 +457,9 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     # load existing QML file
     q = read_questionnaire(xml_input_path, with_comments=True)
 
-    xml_template = bytes(xml_input_path.read_text(encoding='utf-8'), 'utf-8')
+    xml_input_string = xml_input_path.read_text(encoding='utf-8')
+
+    xml_template = bytes(xml_input_string, 'utf-8')
 
     parser = etree.XMLParser(remove_blank_text=True, encoding='utf-8')
     template_root = etree.fromstring(xml_template, parser)
@@ -594,7 +600,10 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     #  if current episode DOES NOT HAVE any split-type-right-of-current-split-type
 
                     # ToDo: add method deleteCurrentSplit(arr, index, list_of_strings)
-                    # ToDo: add method hasCurrentSplit(arr, index, list_of_strings)
+                    # ToDo: add method hasCurrentSplit(arr, index, list_of_strings) -> X Done X
+
+                    # ToDo: deal with split triggers - add check of episode_index
+                    #  unklar, was dort die implikationen sind... bzw. was ich dort immerhin meine
 
                     #  end pages
                     else:
@@ -794,6 +803,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
             else:
                 if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
                     print(f'Missing Automated Trigger Comments for Page:"{page_uid}"')
+
         # deal with transitions - delete old transitions
         if page.find(ZOFAR_TRANSITIONS_TAG) is not None:
             for transition in page.find(ZOFAR_TRANSITIONS_TAG).iterchildren():
@@ -803,6 +813,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             if comment_candidate.text == "AUTOMATICALLY GENERATED":
                                 transition.getparent().remove(transition)
 
+        # add new transitions
         if page_uid in page_transitions_lists.keys():
             if page.find(ZOFAR_TRANSITIONS_TAG) is None:
                 raise ValueError(f'no "transitons" tag found on page: {page_uid}')
@@ -810,8 +821,21 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                 transitions_element = page.find(ZOFAR_TRANSITIONS_TAG)
                 # ToDo Debug
                 x = [etree.tostring(tran_elm) for tran_elm in page_transitions_lists[page_uid]]
+
+                highest_tran_index = None
+                transition_elements_list = [el for el in transitions_element.iterchildren()]
+                for tran_element in transition_elements_list:
+                    if hasattr(tran_element, "attrib"):
+                        if "target" in tran_element.attrib:
+                            if tran_element.attrib["target"] == page_uid:
+                                highest_tran_index = transitions_element.index(tran_element)
+                if highest_tran_index is None:
+                    highest_tran_index = 1
+                else:
+                    highest_tran_index += 1
+
                 for transition_index, transition_element in enumerate(page_transitions_lists[page_uid]):
-                    transitions_element.insert(transition_index, transition_element)
+                    transitions_element.insert(transition_index + highest_tran_index, transition_element)
 
     print(f'{processed_pages_list=}')
 
