@@ -157,13 +157,13 @@ def delete_list_from_current_split_trigger_element(split_type_list: List[str], f
         f"automatically generated trigger for removing previous split type(s) "
         f"{[split_type for split_type in split_type_list]} from 'current_split' of episode")
     new_action_element.insert(0, tmp_comment)
-    list_of_split_types_str = "'" + "'".join(split_type_list) + "'"
+    list_of_split_types_str = "'" + "','".join(split_type_list) + "'"
     script_item_str_list = [
         f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
         "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
         "zofar.assign('toPersist',zofar.map())",
         f"zofar.deleteCurrentSplitType("
-        f"json_array,zofar.toInteger(episode_index.value),zofar.list({list_of_split_types_str})",
+        f"json_array,zofar.toInteger(episode_index.value),zofar.list({list_of_split_types_str}))",
         "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
         "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
 
