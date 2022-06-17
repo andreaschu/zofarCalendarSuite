@@ -705,20 +705,38 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
                                                                                         frag_var_list)
                     page_trigger_lists_after[module_end_page].append(split_episode_trigger)
-                if module_end_page not in page_transitions_lists.keys():
-                    # deal with transitions
+                # DEV possibly obsolete!
+                # ToDo: check and remove if obsolete
+                # if module_end_page not in page_transitions_lists.keys():
+                #     # deal with transitions
+                #     if module_end_page in page_transitions_lists:
+                #         page_transitions_lists[module_end_page].append(create_transition(split_type_start_page,
+                #                                                                          has_current_split_zofar_function(
+                #                                                                              split_type,
+                #                                                                              frag_var_list)))
+                #
+                #     else:
+                #         page_transitions_lists[module_end_page] = [create_transition(split_type_start_page,
+                #                                                                      has_current_split_zofar_function(
+                #                                                                          split_type,
+                #                                                                          frag_var_list))]
+
+                # DUPLICATE CODE FRAGMENT!!
+                # ToDo: refactoring needed!
+                # deal with transitions
+                for iter_split_type in module_split_type_order:
+                    iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
                     if module_end_page in page_transitions_lists:
-                        page_transitions_lists[module_end_page].append(create_transition(split_type_start_page,
+                        page_transitions_lists[module_end_page].append(create_transition(iter_start_page,
                                                                                          has_current_split_zofar_function(
-                                                                                             split_type,
+                                                                                             iter_split_type,
                                                                                              frag_var_list)))
                     else:
-                        page_transitions_lists[module_end_page] = [create_transition(split_type_start_page,
+                        page_transitions_lists[module_end_page] = [create_transition(iter_start_page,
                                                                                      has_current_split_zofar_function(
-                                                                                         split_type,
+                                                                                         iter_split_type,
                                                                                          frag_var_list))]
-
-
+                    # ToDo: fix page order! input module_end_page trigger should be AFTER automatically generated! check on page vaa29 
     _insert_fragment_variable_declarations(template_root, frag_var_stem, frag_var_count)
 
     # delete old split data dictionary
