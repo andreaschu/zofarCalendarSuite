@@ -124,7 +124,7 @@ def automation_comment_switch(elemnt: etree.Element) -> str:
     return AUTOMATION_COMMENT_NONE
 
 
-def create_delete_split_type_trigger_element(split_type: str, frag_var_ls: List[str]) -> etree.Element:
+def delete_from_current_split_trigger_element(split_type: str, frag_var_ls: List[str]) -> etree.Element:
     new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_ls)}),zofar.jsonArr2str(json_array))"
     new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
                                        attrib={"command": new_action_command,
@@ -147,6 +147,32 @@ def create_delete_split_type_trigger_element(split_type: str, frag_var_ls: List[
     return new_action_element
 
 
+def delete_list_from_current_split_trigger_element(split_type_list: List[str], frag_var_ls: List[str]) -> etree.Element:
+    new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_ls)}),zofar.jsonArr2str(json_array))"
+    new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
+                                       attrib={"command": new_action_command,
+                                               "onExit": "true",
+                                               "direction": "forward"})
+    tmp_comment = etree.Comment(
+        f"automatically generated trigger for removing previous split type(s) "
+        f"{[split_type for split_type in split_type_list]} from 'current_split' of episode")
+    new_action_element.insert(0, tmp_comment)
+    list_of_split_types_str = "'" + "'".join(split_type_list) + "'"
+    script_item_str_list = [
+        f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
+        "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
+        "zofar.assign('toPersist',zofar.map())",
+        f"zofar.deleteCurrentSplitType("
+        f"json_array,zofar.toInteger(episode_index.value),zofar.list({list_of_split_types_str})",
+        "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
+        "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
+
+    [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
+     create_script_item is not None]
+
+    return new_action_element
+
+
 def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
                                              input_xml: Union[str, Path],
                                              split_type_to_remove: str) -> None:
@@ -158,7 +184,7 @@ def auto_generate_split_type_removal_trigger(xml_element: etree.Element,
     frag_var_list = [frag_var_stem + str(i + 1) for i in
                      range(frag_var_count)]
 
-    xml_element.addprevious(create_delete_split_type_trigger_element(split_type_to_remove, frag_var_list))
+    xml_element.addprevious(delete_from_current_split_trigger_element(split_type_to_remove, frag_var_list))
 
 
 def auto_generate_split_episode_trigger_element(split_type_dict: dict,
@@ -446,6 +472,12 @@ def has_current_split_zofar_function(split_type_name: str, frag_var_list: list) 
            f"), zofar.toInteger(episode_index.value), '{split_type_name}')"
 
 
+def do_split_on_end_page_candidate_function(split_type_list: List[str], frag_var_list: list) -> str:
+    split_type_list_str = "'" + "','".join(split_type_list) + "'"
+    return f"zofar.doSplitOnEndPageCandidate(zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_list)}))" \
+           f"), zofar.toInteger(episode_index.value), zofar.list({split_type_list_str}))"
+
+
 def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     etree.register_namespace('zofar', 'http://www.his.de/zofar/xml/questionnaire')
     etree.register_namespace('display', 'http://www.dzhw.eu/zofar/xml/display')
@@ -478,8 +510,9 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     # ToDo run frag var declaration / check
 
     page_transitions_lists = {}
-    page_trigger_lists = defaultdict(list)
-    # page_trigger_lists = defaultdict(list)
+    page_trigger_lists_after = defaultdict(list)
+    page_trigger_lists_prior = defaultdict(list)
+    # page_trigger_lists_after = defaultdict(list)
 
     if q.split_data[MODULES_DATA]:
         # iterate over all modules
@@ -548,10 +581,22 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                 f"{','.join(frag_var_list)}))), zofar.toInteger(episode_index.value), '{split_type}')"
                     module_split_transitions_list.append(Transition(target_uid, condition))
 
+            # iterate through the split types in correct order
             for split_type in module_split_type_order:
-                split_type_start_page = module_data[SPLIT_TYPE_DICT][split_type][START_PAGE]
-                if split_type_start_page.strip() == "":
+                split_type_index = module_split_type_order.index(split_type)
+                # determine which split types in the order are left ("previous") of the current split type
+                types_left_of_split_type = module_split_type_order[:split_type_index]
+                # determine which split types in the order are right ("following") of the current split type
+                types_right_of_split_type = module_split_type_order[split_type_index + 1:]
+                split_type_start_page = module_data[SPLIT_TYPE_DICT][split_type][START_PAGE].strip()
+                if split_type_start_page == "":
                     continue
+
+                # remove previous split types from "currentSplit" when we are on a split type start page
+                if types_left_of_split_type != []:
+                    trigger_element = delete_list_from_current_split_trigger_element(types_left_of_split_type,
+                                                                                     frag_var_list)
+                    page_trigger_lists_prior[split_type_start_page].append(trigger_element)
 
                 split_type_end_pages_list = [page for page in
                                              module_data[SPLIT_TYPE_DICT][split_type][END_PAGES].keys()]
@@ -563,27 +608,33 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     #  end page candidates
                     if condition != {}:
                         remove_from_current_split_type_trigger = \
-                            create_delete_split_type_trigger_element(split_type,
-                                                                     frag_var_list)
+                            delete_from_current_split_trigger_element(split_type,
+                                                                      frag_var_list)
                         page_candidate_condition = " and ".join(
                             [f"({key}.value == '{val}')" for key, val in condition.items()])
 
                         # trigger for deleteCurrentSplit()
                         remove_from_current_split_type_trigger.attrib["condition"] = page_candidate_condition
-                        page_trigger_lists[end_page].append(remove_from_current_split_type_trigger)
+                        page_trigger_lists_after[end_page].append(remove_from_current_split_type_trigger)
 
-                        # trigger for splitEpisode()
-                        split_episode_trigger = auto_generate_split_episode_trigger_element(split_type, frag_var_list,
-                                                                                            page_candidate_condition)
+                        # trigger for splitEpisode() - condition has to be concatenated with:
+                        #  "-> and has no other following split types in currentSplit"
+                        split_condition = page_candidate_condition + \
+                                          ' and !(' + \
+                                          do_split_on_end_page_candidate_function(types_right_of_split_type,
+                                                                                  frag_var_list) + ')'
+                        split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
+                                                                                            frag_var_list,
+                                                                                            split_condition)
 
-                        page_trigger_lists[end_page].append(split_episode_trigger)
+                        page_trigger_lists_after[end_page].append(split_episode_trigger)
 
                         # deal with transitions
                         for iter_split_type in module_split_type_order:
                             iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
 
                             iter_condition = " and ".join(
-                                [has_current_split_zofar_function(iter_split_type, frag_var_list),
+                                [do_split_on_end_page_candidate_function(iter_split_type, frag_var_list),
                                  page_candidate_condition])
 
                             if end_page in page_transitions_lists:
@@ -608,13 +659,18 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     #  end pages
                     else:
                         remove_from_current_split_type_trigger = \
-                            create_delete_split_type_trigger_element(split_type,
-                                                                     frag_var_list)
-                        page_trigger_lists[end_page].append(remove_from_current_split_type_trigger)
+                            delete_from_current_split_trigger_element(split_type,
+                                                                      frag_var_list)
+                        page_trigger_lists_after[end_page].append(remove_from_current_split_type_trigger)
 
-                        # trigger for splitEpisode()
-                        split_episode_trigger = auto_generate_split_episode_trigger_element(split_type, frag_var_list)
-                        page_trigger_lists[end_page].append(split_episode_trigger)
+                        # trigger for splitEpisode() - condition has to be concatenated with:
+                        #   "-> and has no other following split types in currentSplit"
+                        split_condition = do_split_on_end_page_candidate_function(types_right_of_split_type,
+                                                                                  frag_var_list)
+                        split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
+                                                                                            frag_var_list,
+                                                                                            split_condition)
+                        page_trigger_lists_after[end_page].append(split_episode_trigger)
 
                         # deal with transitions
                         for iter_split_type in module_split_type_order:
@@ -644,10 +700,11 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
             # also process module end pages
             for module_end_page in module_end_pages:
-                if module_end_page not in page_trigger_lists.keys():
+                if module_end_page not in page_trigger_lists_after.keys():
                     # trigger for splitEpisode()
-                    split_episode_trigger = auto_generate_split_episode_trigger_element(split_type, frag_var_list)
-                    page_trigger_lists[module_end_page].append(split_episode_trigger)
+                    split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
+                                                                                        frag_var_list)
+                    page_trigger_lists_after[module_end_page].append(split_episode_trigger)
                 if module_end_page not in page_transitions_lists.keys():
                     # deal with transitions
                     if module_end_page in page_transitions_lists:
@@ -660,6 +717,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                                                                      has_current_split_zofar_function(
                                                                                          split_type,
                                                                                          frag_var_list))]
+
 
     _insert_fragment_variable_declarations(template_root, frag_var_stem, frag_var_count)
 
@@ -785,13 +843,17 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         remove_mode_switch = False
 
                         # input new trigger - edit in-place, does not return anything
+                        # other trigger prior to regular (clean up currentSplit)
+                        if page_uid in page_trigger_lists_prior.keys():
+                            [trigger.addprevious(page_trigger) for page_trigger in page_trigger_lists_prior[page_uid]]
+
                         # regular
                         if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
                             auto_generate_regular_trigger(xml_element=trigger, input_xml=xml_input_path,
                                                           input_page_uid=page_uid)
-                        # other trigger (deleteCurrentSplit, splitEpisode)
-                        if page_uid in page_trigger_lists.keys():
-                            [trigger.addprevious(page_trigger) for page_trigger in page_trigger_lists[page_uid]]
+                        # other trigger after regular (deleteCurrentSplit, splitEpisode)
+                        if page_uid in page_trigger_lists_after.keys():
+                            [trigger.addprevious(page_trigger) for page_trigger in page_trigger_lists_after[page_uid]]
                         break
 
                     if remove_mode_switch:
