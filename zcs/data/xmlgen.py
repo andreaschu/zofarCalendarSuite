@@ -124,7 +124,8 @@ def automation_comment_switch(elemnt: etree.Element) -> str:
     return AUTOMATION_COMMENT_NONE
 
 
-def delete_from_current_split_trigger_element(split_type: str, frag_var_ls: List[str]) -> etree.Element:
+def delete_from_current_split_trigger_element(split_type: Union[List[str], str],
+                                              frag_var_ls: List[str]) -> etree.Element:
     new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_ls)}),zofar.jsonArr2str(json_array))"
     new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
                                        attrib={"command": new_action_command,
@@ -134,38 +135,17 @@ def delete_from_current_split_trigger_element(split_type: str, frag_var_ls: List
         f"automatically generated trigger for removing split type '{split_type}' from 'current_split' of episode")
     new_action_element.insert(0, tmp_comment)
     script_item_str_list = [
-        f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
-        "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
-        "zofar.assign('toPersist',zofar.map())",
-        f"zofar.deleteCurrentSplitType(json_array,zofar.toInteger(episode_index.value),'{split_type}')",
-        "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
-        "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
-
-    [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
-     create_script_item is not None]
-
-    return new_action_element
-
-
-def delete_list_from_current_split_trigger_element(split_type_list: List[str], frag_var_ls: List[str]) -> etree.Element:
-    new_action_command = f"zofar.frac(zofar.list({','.join(frag_var_ls)}),zofar.jsonArr2str(json_array))"
-    new_action_element = etree.Element('{http://www.his.de/zofar/xml/questionnaire}action',
-                                       attrib={"command": new_action_command,
-                                               "onExit": "true",
-                                               "direction": "forward"})
-    tmp_comment = etree.Comment(
-        f"automatically generated trigger for removing previous split type(s) "
-        f"{[split_type for split_type in split_type_list]} from 'current_split' of episode")
-    new_action_element.insert(0, tmp_comment)
-    list_of_split_types_str = "'" + "','".join(split_type_list) + "'"
-    script_item_str_list = [
-        f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
-        "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value))) ",
-        "zofar.assign('toPersist',zofar.map())",
-        f"zofar.deleteCurrentSplitType("
-        f"json_array,zofar.toInteger(episode_index.value),zofar.list({list_of_split_types_str}))",
-        "zofar.setJsonProperties('episodeObj',episodeObj,toPersist)",
-        "zofar.assign('json_array',zofar.addOrReplaceJson(json_array,episodeObj,zofar.toInteger(episode_index.value)))"]
+        f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))"]
+    if isinstance(split_type, str):
+        script_item_str_list += [f"zofar.assign('json_array',"
+                                 f"zofar.deleteCurrentSplitType(json_array,zofar.toInteger(episode_index.value),'{split_type}'))"]
+    elif isinstance(split_type, list):
+        list_of_split_types_str = "'" + "','".join(split_type) + "'"
+        script_item_str_list += [f"zofar.assign('json_array',"
+                                 f"zofar.deleteCurrentSplitType(json_array,"
+                                 f"zofar.toInteger(episode_index.value),zofar.list({list_of_split_types_str})))"]
+    else:
+        raise TypeError(f"Function only accepts str or List[str]; given type was: {type(split_type)}")
 
     [new_action_element.append(create_script_item(script_item_str)) for script_item_str in script_item_str_list if
      create_script_item is not None]
@@ -571,7 +551,8 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         pprint.pprint(module_end_page_transitions_list)
                         raise AssertionError(
                             f'Transitions from module_end_pages "{module_end_pages}" are not the same over all pages!')
-
+            # ToDo: ensure that the module end transitions are added on all split type end pages and
+            #  split type end candidate pages incl. condition
             module_split_transitions_list = []
 
             for split_type, split_type_data in module_split_type_dict.items():
@@ -594,8 +575,8 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
                 # remove previous split types from "currentSplit" when we are on a split type start page
                 if types_left_of_split_type != []:
-                    trigger_element = delete_list_from_current_split_trigger_element(types_left_of_split_type,
-                                                                                     frag_var_list)
+                    trigger_element = delete_from_current_split_trigger_element(types_left_of_split_type,
+                                                                                frag_var_list)
                     page_trigger_lists_prior[split_type_start_page].append(trigger_element)
 
                 split_type_end_pages_list = [page for page in
@@ -634,7 +615,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
 
                             iter_condition = " and ".join(
-                                [do_split_on_end_page_candidate_function(iter_split_type, frag_var_list),
+                                [do_split_on_end_page_candidate_function([iter_split_type], frag_var_list),
                                  page_candidate_condition])
 
                             if end_page in page_transitions_lists:
@@ -649,9 +630,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
                     # ToDo: only split on split type end page if "currentSplit" exists and
                     #  if current episode DOES NOT HAVE any split-type-right-of-current-split-type
-
-                    # ToDo: add method deleteCurrentSplit(arr, index, list_of_strings)
-                    # ToDo: add method hasCurrentSplit(arr, index, list_of_strings) -> X Done X
 
                     # ToDo: deal with split triggers - add check of episode_index
                     #  unklar, was dort die implikationen sind... bzw. was ich dort tatsächlich meine (??)
@@ -736,7 +714,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                                                                      has_current_split_zofar_function(
                                                                                          iter_split_type,
                                                                                          frag_var_list))]
-                    # ToDo: fix page order! input module_end_page trigger should be AFTER automatically generated! check on page vaa29 
     _insert_fragment_variable_declarations(template_root, frag_var_stem, frag_var_count)
 
     # delete old split data dictionary
@@ -899,9 +876,9 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                 raise ValueError(f'no "transitons" tag found on page: {page_uid}')
             else:
                 transitions_element = page.find(ZOFAR_TRANSITIONS_TAG)
-                # ToDo Debug
                 x = [etree.tostring(tran_elm) for tran_elm in page_transitions_lists[page_uid]]
 
+                # mechanism to ensure that soft-forces (first transition(s) lead(s) to the same page) will be preserved
                 highest_tran_index = None
                 transition_elements_list = [el for el in transitions_element.iterchildren()]
                 for tran_element in transition_elements_list:
@@ -910,7 +887,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                             if tran_element.attrib["target"] == page_uid:
                                 highest_tran_index = transitions_element.index(tran_element)
                 if highest_tran_index is None:
-                    highest_tran_index = 1
+                    highest_tran_index = 0
                 else:
                     highest_tran_index += 1
 
