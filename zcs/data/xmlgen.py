@@ -81,9 +81,16 @@ def create_script_item(val: str) -> etree.Element:
                          attrib={"value": val})
 
 
-def create_transition(target_str: str, condition_str: str,
+def create_transition(target_str: str, condition_str: Optional[str] = None,
                       comment_str: str = 'AUTOMATICALLY GENERATED') -> etree.Element:
-    tmp_element = etree.Element(ZOFAR_TRANSITION_TAG, attrib={"target": target_str, "condition": condition_str})
+    tmp_element = etree.Element(ZOFAR_TRANSITION_TAG, attrib={"target": target_str})
+    if condition_str is not None:
+        if isinstance(condition_str, str):
+            condition_str = condition_str.strip()
+            if condition_str != "":
+                tmp_element = etree.Element(ZOFAR_TRANSITION_TAG,
+                                            attrib={"target": target_str,
+                                                    "condition": condition_str})
     tmp_comment = etree.Comment(comment_str)
     tmp_element.append(tmp_comment)
     return tmp_element
@@ -234,6 +241,7 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
         new_action_element.insert(0, tmp_comment)
         script_item_str_list = ["zofar.assign('toReset',zofar.list())"]
 
+        # ToDo: find out why sometimes the variables do not reset!
         for variable in var_list:
             if variable.dropdown:
                 script_item_str_list += [
@@ -261,7 +269,7 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
             f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
             "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value)))",
             "zofar.assign('monthMap',zofar.map('1=ao1,2=ao2,3=ao3,4=ao4,5=ao5,6=ao6,7=ao7,8=ao8,9=ao9,10=ao10,11=ao11,12=ao12'))",
-            "zofar.assign('yearMap',zofar.map('2018=ao1,2019=ao2,2020=ao3,2021=ao4,2022=ao5,2023=ao6,2024=ao7'))",
+            "zofar.assign('yearMap',zofar.map('2014=ao1,2015=ao2,2016=ao3,2017=ao4,2018=ao5,2019=ao6,2020=ao7,2021=ao8,2022=ao9,2023=ao10,2024=ao11'))",
             "zofar.setVariableValue(v_startmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1))",
             "zofar.setVariableValue(v_startyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)))",
             "zofar.setVariableValue(v_endmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1))",
@@ -591,8 +599,13 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         remove_from_current_split_type_trigger = \
                             delete_from_current_split_trigger_element(split_type,
                                                                       frag_var_list)
-                        page_candidate_condition = " and ".join(
-                            [f"({key}.value == '{val}')" for key, val in condition.items()])
+                        tmp_conditions_list = []
+                        for var_name, var_val in condition.items():
+                            if q.variables[var_name].type == 'enum':
+                                tmp_conditions_list.append(f"({var_name}.valueId == '{var_val}')")
+                            else:
+                                tmp_conditions_list.append(f"({var_name}.value == '{var_val}')")
+                        page_candidate_condition = ' and '.join(tmp_conditions_list)
 
                         # trigger for deleteCurrentSplit()
                         remove_from_current_split_type_trigger.attrib["condition"] = page_candidate_condition
@@ -601,7 +614,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         # trigger for splitEpisode() - condition has to be concatenated with:
                         #  "-> and has no other following split types in currentSplit"
                         split_condition = page_candidate_condition + \
-                                          ' and !(' + \
+                                          ' and (' + \
                                           do_split_on_end_page_candidate_function(types_right_of_split_type,
                                                                                   frag_var_list) + ')'
                         split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
@@ -663,18 +676,13 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                                                                       has_current_split_zofar_function(
                                                                                           iter_split_type,
                                                                                           frag_var_list))]
-                    #
-                    # for module_end_transition in module_end_page_transitions_list:
-                    #     if module_end_transition.condition is not None:
-                    #         transition_element = create_transition(module_end_transition.target_uid,
-                    #                                                module_end_transition.condition)
-                    #     else:
-                    #         transition_element = create_transition(module_end_transition.target_uid, "true")
-                    #
-                    #     if end_page in page_transitions_lists:
-                    #         page_transitions_lists[end_page].append(transition_element)
-                    #     else:
-                    #         page_transitions_lists[end_page] = [transition_element]
+                    for module_end_transition in module_end_page_transitions_list:
+                        tran_target = module_end_transition.target_uid
+                        if module_end_transition.condition is not None:
+                            condition_str = module_end_transition.condition + ' and zofar.asNumber(episode_index) lt 0'
+                        else:
+                            condition_str = 'zofar.asNumber(episode_index) lt 0'
+                        page_transitions_lists[end_page].append(create_transition(tran_target, condition_str))
 
             # also process module end pages
             for module_end_page in module_end_pages:
@@ -683,21 +691,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
                                                                                         frag_var_list)
                     page_trigger_lists_after[module_end_page].append(split_episode_trigger)
-                # DEV possibly obsolete!
-                # ToDo: check and remove if obsolete
-                # if module_end_page not in page_transitions_lists.keys():
-                #     # deal with transitions
-                #     if module_end_page in page_transitions_lists:
-                #         page_transitions_lists[module_end_page].append(create_transition(split_type_start_page,
-                #                                                                          has_current_split_zofar_function(
-                #                                                                              split_type,
-                #                                                                              frag_var_list)))
-                #
-                #     else:
-                #         page_transitions_lists[module_end_page] = [create_transition(split_type_start_page,
-                #                                                                      has_current_split_zofar_function(
-                #                                                                          split_type,
-                #                                                                          frag_var_list))]
 
                 # DUPLICATE CODE FRAGMENT!!
                 # ToDo: refactoring needed!
@@ -886,6 +879,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         if "target" in tran_element.attrib:
                             if tran_element.attrib["target"] == page_uid:
                                 highest_tran_index = transitions_element.index(tran_element)
+
                 if highest_tran_index is None:
                     highest_tran_index = 0
                 else:
