@@ -460,6 +460,12 @@ def has_current_split_zofar_function(split_type_name: str, frag_var_list: list) 
            f"), zofar.toInteger(episode_index.value), '{split_type_name}')"
 
 
+def has_current_split_list_zofar_function(split_type_name_list: List[str], frag_var_list: list) -> str:
+    split_type_list_str = "'" + "','".join(split_type_name_list) + "'"
+    return f"zofar.hasCurrentSplitType(zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_list)}))" \
+           f"), zofar.toInteger(episode_index.value), zofar.list({split_type_list_str}))"
+
+
 def do_split_on_end_page_candidate_function(split_type_list: List[str], frag_var_list: list) -> str:
     split_type_list_str = "'" + "','".join(split_type_list) + "'"
     return f"zofar.doSplitOnEndPageCandidate(zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_list)}))" \
@@ -624,28 +630,20 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         page_trigger_lists_after[end_page].append(split_episode_trigger)
 
                         # deal with transitions
-                        for iter_split_type in module_split_type_order:
-                            iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
+                        iter_condition = " and ".join(
+                            [has_current_split_list_zofar_function(module_split_type_order, frag_var_list),
+                             page_candidate_condition])
+                        # if end_page in page_transitions_lists:
+                        #     page_transitions_lists[end_page].append(create_transition(iter_start_page,
+                        #                                                               iter_condition))
+                        # else:
+                        #     page_transitions_lists[end_page] = [create_transition(iter_start_page,
+                        #                                                           iter_condition)]
 
-                            iter_condition = " and ".join(
-                                [do_split_on_end_page_candidate_function([iter_split_type], frag_var_list),
-                                 page_candidate_condition])
-
-                            if end_page in page_transitions_lists:
-                                page_transitions_lists[end_page].append(create_transition(iter_start_page,
-                                                                                          iter_condition))
-                            else:
-                                page_transitions_lists[end_page] = [create_transition(iter_start_page,
-                                                                                      iter_condition)]
-
-                    # ToDo: remove left-of-current-split-type split_types from currentSplit via trigger on split type
-                    #  start page of right-of-current-split-types
-
-                    # ToDo: only split on split type end page if "currentSplit" exists and
-                    #  if current episode DOES NOT HAVE any split-type-right-of-current-split-type
-
-                    # ToDo: deal with split triggers - add check of episode_index
-                    #  unklar, was dort die implikationen sind... bzw. was ich dort tatsächlich meine (??)
+                        # prepare transition condition
+                        iter_condition = " and ".join(
+                            [has_current_split_list_zofar_function(module_split_type_order, frag_var_list),
+                             page_candidate_condition])
 
                     #  end pages
                     else:
@@ -663,26 +661,29 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                                                                             split_condition)
                         page_trigger_lists_after[end_page].append(split_episode_trigger)
 
-                        # deal with transitions
-                        for iter_split_type in module_split_type_order:
-                            iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
-                            if end_page in page_transitions_lists:
-                                page_transitions_lists[end_page].append(create_transition(iter_start_page,
-                                                                                          has_current_split_zofar_function(
-                                                                                              iter_split_type,
-                                                                                              frag_var_list)))
-                            else:
-                                page_transitions_lists[end_page] = [create_transition(iter_start_page,
-                                                                                      has_current_split_zofar_function(
-                                                                                          iter_split_type,
-                                                                                          frag_var_list))]
-                    for module_end_transition in module_end_page_transitions_list:
-                        tran_target = module_end_transition.target_uid
-                        if module_end_transition.condition is not None:
-                            condition_str = module_end_transition.condition + ' and zofar.asNumber(episode_index) lt 0'
-                        else:
-                            condition_str = 'zofar.asNumber(episode_index) lt 0'
-                        page_transitions_lists[end_page].append(create_transition(tran_target, condition_str))
+                        # prepare transition condition
+                        iter_condition = has_current_split_list_zofar_function(module_split_type_order, frag_var_list)
+
+                    # deal with transitions - implement transition condition
+                    landing_page_name = f'splitlanding_{module_page_name_startswith}01'
+                    if end_page in page_transitions_lists:
+                        page_transitions_lists[end_page].append(create_transition('episodedispatcher',
+                                                                                  'zofar.asNumber(episode_index) lt 0'))
+                        page_transitions_lists[end_page].append(create_transition(landing_page_name,
+                                                                                  iter_condition))
+                    else:
+                        page_transitions_lists[end_page] = [create_transition('episodedispatcher',
+                                                                              'zofar.asNumber(episode_index) lt 0')]
+                        page_transitions_lists[end_page].append(create_transition(landing_page_name,
+                                                                                  iter_condition))
+
+                    # for module_end_transition in module_end_page_transitions_list:
+                    #     tran_target = module_end_transition.target_uid
+                    #     if module_end_transition.condition is not None:
+                    #         condition_str = module_end_transition.condition + ' and zofar.asNumber(episode_index) lt 0'
+                    #     else:
+                    #         condition_str = 'zofar.asNumber(episode_index) lt 0'
+                    #     page_transitions_lists[end_page].append(create_transition(tran_target, condition_str))
 
             # also process module end pages
             for module_end_page in module_end_pages:
