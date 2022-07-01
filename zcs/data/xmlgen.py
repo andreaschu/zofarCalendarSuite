@@ -64,8 +64,8 @@ DISPLAY_NAMESPACE = "{http://www.dzhw.eu/zofar/xml/display}"
 ZOFAR_DISPLAY_TEXT_TAG = f"{DISPLAY_NAMESPACE}text"
 
 
-def create_ascii_art_comments(input_str: str) -> List[etree.Comment]:
-    ascii_art = text2art(input_str)
+def create_ascii_art_comments(input_str: str, font: str = 'standard') -> List[etree.Comment]:
+    ascii_art = text2art(input_str, font)
     return [etree.Comment('###  ' + line) for line in ascii_art.split('\n') if len(line) > 0]
 
 
