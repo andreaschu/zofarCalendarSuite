@@ -472,6 +472,106 @@ def do_split_on_end_page_candidate_function(split_type_list: List[str], frag_var
            f"), zofar.toInteger(episode_index.value), zofar.list({split_type_list_str}))"
 
 
+def soundness_check_module_split_data(module_data_dict: dict, module_split_type_dict: dict) -> bool:
+    # check for split types (declaration data and split type order should show the same entries)
+    assert soundness_check_split_types(module_data_dict, module_split_type_dict)
+    # soundness check for split type end pages (in every split type there must be at least one end page in END_PAGES without any conditions)
+    assert soundness_check_split_type_end_pages(module_data_dict, module_split_type_dict)
+    assert soundness_check_all_module_pages_startwith(module_data_dict)
+    return True
+
+
+def soundness_check_all_modules_data(all_modules_data_dict: dict) -> bool:
+    soundness_check_unique_module_page_startswith(all_modules_data_dict)
+    soundness_check_unique_module_end_pages(all_modules_data_dict)
+    return True
+
+
+def soundness_check_unique_module_page_startswith(all_modules_data_dict: dict) -> bool:
+    # soundness check for uniqueness of module page name startswith
+    startswith_module_dict = defaultdict(list)
+    [startswith_module_dict[module_data[PAGE_NAME_STARTSWITH]].append(module_name) for module_name, module_data in
+     all_modules_data_dict.items()]
+
+    duplicate_startswith = {key: val for key, val in startswith_module_dict.items() if len(val) > 1}
+    if duplicate_startswith != {}:
+        pprint.pprint(duplicate_startswith)
+        raise KeyError(
+            f'Module end pages {duplicate_startswith.keys()} found in multiple modules: '
+            f'{pprint.pformat(duplicate_startswith)}')
+    return True
+
+
+def soundness_check_unique_module_end_pages(all_modules_data_dict: dict) -> bool:
+    # soundness check for uniqueness of module end pages
+    end_pages_module_dict = defaultdict(list)
+    for module_name, module_data in all_modules_data_dict.items():
+        if module_data[MODULE_END_PAGES] == ['']:
+            continue
+        else:
+            for end_page_name in module_data[MODULE_END_PAGES]:
+                end_pages_module_dict[end_page_name].append(module_name)
+    multiple_pages = {key: val for key, val in end_pages_module_dict.items() if len(val) > 1}
+    if multiple_pages != {}:
+        pprint.pprint(multiple_pages)
+        raise KeyError(f'Module end pages {multiple_pages.keys()} found in multiple modules: '
+                       f'{pprint.pformat(multiple_pages)}')
+    return True
+
+def soundness_check_all_module_pages_startwith(module_data_dict: dict) -> bool:
+    page_names_startwith = module_data_dict[PAGE_NAME_STARTSWITH]
+    malformed_module_end_page_names = [page for page in module_data_dict[MODULE_END_PAGES] if page != '' and
+                                       not str(page).startswith(page_names_startwith)]
+
+    malformed_split_type_start_pages=[split_type_dict[START_PAGE] for split_type_name, split_type_dict in module_data_dict[SPLIT_TYPE_DICT].items() if split_type_dict[START_PAGE] != '' and not split_type_dict[START_PAGE].startswith(page_names_startwith)]
+    malformed_split_type_start_pages= [[k for k, _ in key.items()] for key in [split_type_dict[END_PAGES] for split_type_name, split_type_dict in module_data_dict[SPLIT_TYPE_DICT].items()]]
+    malformed_split_type_start_pages=[page for page in [split_type_dict[END_PAGES] for split_type_name, split_type_dict in module_data_dict[SPLIT_TYPE_DICT].items()] if page != '' and not page.startswith(page_names_startwith)]
+    print()
+    return True
+
+def flatten(input_list) -> list:
+    for entry in input_list:
+        if isinstance(entry, list):
+            flatten(entry)
+
+def soundness_check_split_types(module_data_dict: dict, module_split_type_dict: dict) -> bool:
+    # soundness check for split types (declaration data and split type order should show the same entries)
+    split_types_not_found = [split_type for split_type in module_data_dict[SPLIT_TYPE_ORDER] if
+                             split_type not in module_split_type_dict.keys() and split_type.strip() != '']
+    if split_types_not_found:
+        raise KeyError(
+            f'Split Type(s) from {SPLIT_TYPE_ORDER} not found in {SPLIT_TYPE_DICT}: "{split_types_not_found}"')
+    return True
+
+
+def soundness_check_split_type_end_pages(module_data_dict: dict, module_split_type_dict: dict) -> bool:
+    # soundness check for split type end pages (in every split type there must be at least one end page in END_PAGES without any conditions)
+    for split_type, split_type_data in module_split_type_dict.items():
+        if split_type_data[SPLIT_VAR] == [{"": ""}]:
+            continue
+        split_or_list = []
+        for split_end_page, split_end_condition_list in split_type_data[END_PAGES].items():
+            for split_condition in split_end_condition_list:
+                split_and_list = []
+                if len(split_condition) == 0:
+                    continue
+                for split_cond_var, split_cond_val in split_condition.items():
+                    split_and_list.append(f'{split_cond_var}.value == {split_cond_val}')
+                if len(split_and_list) > 0:
+                    split_or_list.append(split_and_list)
+
+            split_condition_str = '(' + ') or ('.join(
+                [' and '.join(entry) for entry in split_or_list]) + ')'
+            # ToDo: what to do with this condition string?
+
+        if not any(
+                [end_page for end_page, end_page_val in split_type_data[END_PAGES].items() if
+                 len(end_page_val) == 0 or end_page_val == [{}]]):
+            raise KeyError(
+                f'"{split_type=}" does not have any end pages without conditions! There must be at least one page in "{END_PAGES}" without conditions.')
+    return True
+
+
 def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     etree.register_namespace('zofar', 'http://www.his.de/zofar/xml/questionnaire')
     etree.register_namespace('display', 'http://www.dzhw.eu/zofar/xml/display')
@@ -509,6 +609,9 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     # page_trigger_lists_after = defaultdict(list)
 
     if q.split_data[MODULES_DATA]:
+        # soundness check for all modules data
+        soundness_check_all_modules_data(q.split_data[MODULES_DATA])
+
         # iterate over all modules
         for module_name_str, module_data in q.split_data[MODULES_DATA].items():
             try:
@@ -523,22 +626,8 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                            split_type.strip() != '']
                 module_end_pages = [page for page in module_data[MODULE_END_PAGES] if page.strip() != ""]
 
-                # soundness check for split types (declaration data and split type order should show the same entries)
-                split_types_not_found = [split_type for split_type in module_data[SPLIT_TYPE_ORDER] if
-                                         split_type not in module_split_type_dict.keys() and split_type.strip() != '']
-                if split_types_not_found:
-                    raise KeyError(
-                        f'Split Type(s) from {SPLIT_TYPE_ORDER} not found in {SPLIT_TYPE_DICT}: "{split_types_not_found}"')
-
-                # soundness check for split type end pages (in every split type there must be at least one end page in END_PAGES without any conditions)
-                for split_type, split_type_data in module_split_type_dict.items():
-                    if split_type_data[SPLIT_VAR] == [{"": ""}]:
-                        continue
-                    if not any(
-                            [end_page for end_page, end_page_val in split_type_data[END_PAGES].items() if
-                             len(end_page_val) == 0]):
-                        raise KeyError(
-                            f'"{split_type=}" does not have any end pages without conditions! There must be at least one page in "{END_PAGES}" without conditions.')
+                # soundness check of module_data and module_split_type_dict
+                assert soundness_check_module_split_data(module_data, module_split_type_dict)
 
             except KeyError as e:
                 print(f'Module Data Dictionary for Module "{module_name_str}"')
@@ -597,20 +686,22 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                              module_data[SPLIT_TYPE_DICT][split_type][END_PAGES].keys()]
 
                 for end_page in split_type_end_pages_list:
-                    condition = module_data[SPLIT_TYPE_DICT][split_type][END_PAGES][end_page]
+                    conditions_list = module_data[SPLIT_TYPE_DICT][split_type][END_PAGES][end_page]
                     # deal with triggers & transitions
                     #
                     #  end page candidates
-                    if condition != {}:
+                    if conditions_list != [{}]:
                         remove_from_current_split_type_trigger = \
                             delete_from_current_split_trigger_element(split_type,
                                                                       frag_var_list)
                         tmp_conditions_list = []
-                        for var_name, var_val in condition.items():
-                            if q.variables[var_name].type == 'enum':
-                                tmp_conditions_list.append(f"({var_name}.valueId == '{var_val}')")
-                            else:
-                                tmp_conditions_list.append(f"({var_name}.value == '{var_val}')")
+                        for condition_entry in conditions_list:
+                            for var_name, var_val in condition_entry.items():
+                                if q.variables[var_name].type == 'enum':
+                                    tmp_conditions_list.append(f"({var_name}.valueId == '{var_val}')")
+                                else:
+                                    tmp_conditions_list.append(f"({var_name}.value == '{var_val}')")
+
                         page_candidate_condition = ' and '.join(tmp_conditions_list)
 
                         # trigger for deleteCurrentSplit()
@@ -628,17 +719,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                                                                             split_condition)
 
                         page_trigger_lists_after[end_page].append(split_episode_trigger)
-
-                        # deal with transitions
-                        iter_condition = " and ".join(
-                            [has_current_split_list_zofar_function(module_split_type_order, frag_var_list),
-                             page_candidate_condition])
-                        # if end_page in page_transitions_lists:
-                        #     page_transitions_lists[end_page].append(create_transition(iter_start_page,
-                        #                                                               iter_condition))
-                        # else:
-                        #     page_transitions_lists[end_page] = [create_transition(iter_start_page,
-                        #                                                           iter_condition)]
 
                         # prepare transition condition
                         iter_condition = " and ".join(
@@ -677,37 +757,21 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         page_transitions_lists[end_page].append(create_transition(landing_page_name,
                                                                                   iter_condition))
 
-                    # for module_end_transition in module_end_page_transitions_list:
-                    #     tran_target = module_end_transition.target_uid
-                    #     if module_end_transition.condition is not None:
-                    #         condition_str = module_end_transition.condition + ' and zofar.asNumber(episode_index) lt 0'
-                    #     else:
-                    #         condition_str = 'zofar.asNumber(episode_index) lt 0'
-                    #     page_transitions_lists[end_page].append(create_transition(tran_target, condition_str))
-
             # also process module end pages
             for module_end_page in module_end_pages:
+                # deal with triggers
                 if module_end_page not in page_trigger_lists_after.keys():
                     # trigger for splitEpisode()
                     split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
                                                                                         frag_var_list)
                     page_trigger_lists_after[module_end_page].append(split_episode_trigger)
 
-                # DUPLICATE CODE FRAGMENT!!
-                # ToDo: refactoring needed!
                 # deal with transitions
-                for iter_split_type in module_split_type_order:
-                    iter_start_page = module_split_type_dict[iter_split_type][START_PAGE]
-                    if module_end_page in page_transitions_lists:
-                        page_transitions_lists[module_end_page].append(create_transition(iter_start_page,
-                                                                                         has_current_split_zofar_function(
-                                                                                             iter_split_type,
-                                                                                             frag_var_list)))
-                    else:
-                        page_transitions_lists[module_end_page] = [create_transition(iter_start_page,
-                                                                                     has_current_split_zofar_function(
-                                                                                         iter_split_type,
-                                                                                         frag_var_list))]
+                if module_end_page not in page_transitions_lists.keys():
+                    page_transitions_lists[module_end_page] = [create_transition('episodedispatcher', 'true')]
+                else:
+                    page_transitions_lists[module_end_page].append(create_transition('episodedispatcher', 'true'))
+
     _insert_fragment_variable_declarations(template_root, frag_var_stem, frag_var_count)
 
     # delete old split data dictionary
@@ -870,7 +934,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                 raise ValueError(f'no "transitons" tag found on page: {page_uid}')
             else:
                 transitions_element = page.find(ZOFAR_TRANSITIONS_TAG)
-                x = [etree.tostring(tran_elm) for tran_elm in page_transitions_lists[page_uid]]
 
                 # mechanism to ensure that soft-forces (first transition(s) lead(s) to the same page) will be preserved
                 highest_tran_index = None
