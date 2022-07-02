@@ -518,21 +518,41 @@ def soundness_check_unique_module_end_pages(all_modules_data_dict: dict) -> bool
                        f'{pprint.pformat(multiple_pages)}')
     return True
 
+
 def soundness_check_all_module_pages_startwith(module_data_dict: dict) -> bool:
     page_names_startwith = module_data_dict[PAGE_NAME_STARTSWITH]
     malformed_module_end_page_names = [page for page in module_data_dict[MODULE_END_PAGES] if page != '' and
                                        not str(page).startswith(page_names_startwith)]
 
-    malformed_split_type_start_pages=[split_type_dict[START_PAGE] for split_type_name, split_type_dict in module_data_dict[SPLIT_TYPE_DICT].items() if split_type_dict[START_PAGE] != '' and not split_type_dict[START_PAGE].startswith(page_names_startwith)]
-    malformed_split_type_start_pages= [[k for k, _ in key.items()] for key in [split_type_dict[END_PAGES] for split_type_name, split_type_dict in module_data_dict[SPLIT_TYPE_DICT].items()]]
-    malformed_split_type_start_pages=[page for page in [split_type_dict[END_PAGES] for split_type_name, split_type_dict in module_data_dict[SPLIT_TYPE_DICT].items()] if page != '' and not page.startswith(page_names_startwith)]
-    print()
+    malformed_split_type_start_pages = [split_type_dict[START_PAGE] for split_type_name, split_type_dict in
+                                        module_data_dict[SPLIT_TYPE_DICT].items() if
+                                        split_type_dict[START_PAGE] != '' and not split_type_dict[
+                                            START_PAGE].startswith(page_names_startwith)]
+    malformed_split_type_start_pages = [item for items in [[k for k, _ in key.items()] for key in
+                                                           [split_type_dict[END_PAGES] for
+                                                            split_type_name, split_type_dict in
+                                                            module_data_dict[SPLIT_TYPE_DICT].items()]] for item in
+                                        items if not item.startswith(page_names_startwith)]
+    malformed_split_type_end_pages = [page for pages in [split_type_dict[END_PAGES].keys() for split_type_dict in
+                                         module_data_dict[SPLIT_TYPE_DICT].values()] for page in pages if not page.startswith(page_names_startwith)]
+    if any(malformed_module_end_page_names):
+        raise KeyError(f'Malformed module end page name(s): {malformed_module_end_page_names}')
+    if any(malformed_split_type_start_pages):
+        raise KeyError(f'Malformed module end page name(s): {malformed_module_end_page_names}')
+    if any(malformed_split_type_end_pages):
+        raise KeyError(f'Malformed module end page name(s): {malformed_module_end_page_names}')
     return True
 
-def flatten(input_list) -> list:
-    for entry in input_list:
-        if isinstance(entry, list):
-            flatten(entry)
+
+def flatten(input_list):
+    output_list = []
+    for element in input_list:
+        if isinstance(element, list):
+            [output_list.append(entry) for entry in flatten(element)]
+        else:
+            output_list.append(element)
+    return output_list
+
 
 def soundness_check_split_types(module_data_dict: dict, module_split_type_dict: dict) -> bool:
     # soundness check for split types (declaration data and split type order should show the same entries)
