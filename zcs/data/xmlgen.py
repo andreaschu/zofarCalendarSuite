@@ -816,10 +816,6 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     parser = etree.XMLParser(remove_blank_text=True, encoding='utf-8')
     template_root = etree.fromstring(xml_template, parser)
-    for element in template_root.iterchildren():
-        if is_comment_element(element):
-            # evaluate comments here, if needed
-            pass  # do nothing
 
     frag_var_stem = str(q.split_data[DATA][FRAGMENT_VARS_STEM])
     frag_var_count = int(q.split_data[DATA][FRAGMENT_VARS_COUNT])
