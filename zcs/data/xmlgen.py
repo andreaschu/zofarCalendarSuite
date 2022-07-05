@@ -8,7 +8,7 @@ from typing import Union, List, Optional, Set, Dict
 from lxml import etree
 import html
 from collections import defaultdict
-from zcs.data.xmlutil import read_questionnaire, Transition
+from zcs.data.xmlutil import read_questionnaire, Transition, Questionnaire
 
 XML_INPUT_PATH = os.environ.get('XML_INPUT_PATH')
 XML_OUTPUT_PATH = os.environ.get('XML_OUTPUT_PATH')
@@ -605,9 +605,9 @@ def create_zofar_page(page_uid: str,
     if list_of_header_elements is not None:
         [new_page_elmnt.find(ZOFAR_HEADER_TAG).append(element) for element in list_of_header_elements]
     if list_of_body_elements is not None:
-        [new_page_elmnt.find(ZOFAR_HEADER_TAG).append(element) for element in list_of_body_elements]
+        [new_page_elmnt.find(ZOFAR_BODY_TAG).append(element) for element in list_of_body_elements]
     if list_of_triggers is not None:
-        [new_page_elmnt.find(ZOFAR_HEADER_TAG).append(element) for element in list_of_triggers]
+        [new_page_elmnt.find(ZOFAR_TRIGGERS_TAG).append(element) for element in list_of_triggers]
 
     if list_of_transitions is not None:
         [new_page_elmnt.find(ZOFAR_HEADER_TAG).append(element) for element in list_of_transitions]
@@ -640,7 +640,7 @@ def remove_backwardsblock_pages(input_html_root: etree._Element) -> etree._Eleme
     return input_html_root
 
 
-def create_zofar_text_element(uid: str, input_text: str):
+def create_text_element(uid: str, input_text: str):
     new_text_element = etree.Element(ZOFAR_TEXT_TAG, attrib={'uid': uid})
     new_text_element.text = input_text
     return new_text_element
@@ -669,24 +669,35 @@ def remove_and_add_splitlanding_pages(html_root: etree._Element,
     return html_root
 
 
+def create_redirect_action(target: str, on_exit: str, direction: str = None, condition: str = None) -> etree._Element:
+    return create_zofar_action(command=f"navigatorBean.redirect('{target}')",
+                               on_exit=on_exit,
+                               direction=direction,
+                               condition=condition)
+
+
 def add_backwardsblock_pages(input_html_root: etree._Element,
                              input_pages_dict: Dict[str, Union[List[str], Set[str]]]) -> etree._Element:
     for input_pages_startswith, input_pages_iterable in input_pages_dict.items():
-        episodedispatcher_trigger_element = create_zofar_action(command="navigatorBean.redirect('episodedispatcher')",
-                                                                on_exit="false",
-                                                                condition=f"!navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}")
-        for input_page in input_pages_iterable:
-            header_text_element = create_zofar_text_element('t1',
-                                                            'Diese Page sollte eigentlich nicht angezeigt, sondern '
+        episodedispatcher_trigger_element = create_redirect_action(target='episodedispatcher',
+                                                                   on_exit='false',
+                                                                   condition=f"!navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}')")
+        for page in input_pages_iterable:
+            header_text_element = create_text_element('t1', 'Diese Page sollte eigentlich nicht angezeigt, sondern '
                                                             'direkt übersprungen werden.#{layout.BREAK} Das hat '
                                                             'leider nicht geklappt. Bitte klicken Sie auf "Weiter".')
-            trigger_element = create_zofar_action(command=f"navigatorBean.redirect('{input_page}')",
-                                                  on_exit="false",
-                                                  condition=f"navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}")
+
+            trigger_element = create_redirect_action(target=page,
+                                                     on_exit="false",
+                                                     condition=f"navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}')")
+
+            # ToDo: add comment to indicate that it is auto generated
+
             input_html_root.append(
-                create_zofar_page(page_uid='backwardsblock_' + input_page,
+                create_zofar_page(page_uid='backwardsblock_' + page,
                                   list_of_header_elements=[header_text_element],
                                   list_of_triggers=[episodedispatcher_trigger_element, trigger_element]))
+
     return input_html_root
 
 
@@ -775,6 +786,17 @@ def add_debug_info_to_page(page: etree._Element, split_data: dict) -> etree._Ele
                                                      debug_accordion_split_type_text))
 
     return page
+
+
+def list_all_module_pages(q: Questionnaire) -> List[str]:
+    list_all_startswith_strings = [module_data[PAGE_NAME_STARTSWITH] for module_data in
+                                   q.split_data[MODULES_DATA].values()]
+    return_list = []
+    for string in list_all_startswith_strings:
+        for page_uid in [page.uid for page in q.pages]:
+            if page_uid.startswith(string):
+                return_list.append(page_uid)
+    return return_list
 
 
 def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
@@ -1006,63 +1028,73 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
         for ascii_art_comment in ascii_art_comments:
             page.addprevious(ascii_art_comment)
 
-        # DEBUG INFOS
-        for module_name_str, module_data in q.split_data[MODULES_DATA].items():
-            if page_uid.startswith(module_data[PAGE_NAME_STARTSWITH]):
+        # PROCESS ALL MODULE PAGES
+        if page_uid in list_all_module_pages(q):
 
-                # remove previously generated debug section
-                for section_tag in page.find(ZOFAR_BODY_TAG).iterchildren():
-                    if "uid" in section_tag.attrib:
-                        if section_tag.attrib['uid'].startswith("automaticallygenerated"):
-                            section_tag.getparent().remove(section_tag)
+            # remove previously generated debug section
+            for section_tag in page.find(ZOFAR_BODY_TAG).iterchildren():
+                if "uid" in section_tag.attrib:
+                    if section_tag.attrib['uid'].startswith("automaticallygenerated"):
+                        section_tag.getparent().remove(section_tag)
+            # add debug info
+            if DEBUG:
+                add_debug_info_to_page(page, split_data_dict[SPLIT_DATA])
 
-                if DEBUG:
-                    add_debug_info_to_page(page, split_data_dict[SPLIT_DATA])
-
+        # automatically generated triggers
         remove_mode_switch = False
-        for triggers in page.iterchildren(ZOFAR_TRIGGERS_TAG):
-            automation_comment_list = [automation_comment_switch(elmn) for elmn in
-                                       page.find(ZOFAR_TRIGGERS_TAG).iter()]
-            if AUTOMATION_COMMENT_START in automation_comment_list and \
-                    AUTOMATION_COMMENT_END in automation_comment_list[
-                                              automation_comment_list.index(AUTOMATION_COMMENT_START) + 1:]:
-                # track progress
-                processed_pages_list.append(page_uid)
+        if page_uid in list_all_module_pages(q):
+            for triggers in page.iterchildren(ZOFAR_TRIGGERS_TAG):
+                automation_comment_list = [automation_comment_switch(elmn) for elmn in
+                                           page.find(ZOFAR_TRIGGERS_TAG).iter()]
+                if AUTOMATION_COMMENT_START in automation_comment_list and \
+                        AUTOMATION_COMMENT_END in automation_comment_list[
+                                                  automation_comment_list.index(AUTOMATION_COMMENT_START) + 1:]:
+                    # track progress
+                    processed_pages_list.append(page_uid)
 
-                trigger_to_delete = None
-                for trigger in triggers.iterchildren():
-                    if trigger_to_delete is not None:
-                        trigger_to_delete.getparent().remove(trigger_to_delete)
-                        trigger_to_delete = None
+                    trigger_to_delete = None
+                    for trigger in triggers.iterchildren():
+                        if trigger_to_delete is not None:
+                            trigger_to_delete.getparent().remove(trigger_to_delete)
+                            trigger_to_delete = None
 
-                    if automation_comment_switch(trigger) == AUTOMATION_COMMENT_END:
-                        remove_mode_switch = False
+                        if automation_comment_switch(trigger) == AUTOMATION_COMMENT_END:
+                            remove_mode_switch = False
 
-                        # input new trigger - edit in-place, does not return anything
-                        # other trigger prior to regular (clean up currentSplit)
-                        if page_uid in page_trigger_list_dict_ins_prior.keys():
-                            [trigger.addprevious(page_trigger) for page_trigger in
-                             page_trigger_list_dict_ins_prior[page_uid]]
+                            # first trigger: redirect if index < 0
+                            frag_var_list_str = ','.join(frag_var_list)
+                            redirect = create_redirect_action(target="calendar",
+                                                              on_exit="false",
+                                                              condition="zofar.asNumber(episode_index) lt 0 or "
+                                                                        "zofar.asNumber(episode_index) ge "
+                                                                        "zofar.toInteger("
+                                                                        "zofar.str2jsonArr(zofar.defrac("
+                                                                        f"zofar.list({frag_var_list_str}))).size())")
+                            trigger.addprevious(redirect)
+                            # input new trigger - edit in-place, does not return anything
+                            # other trigger prior to regular (clean up currentSplit)
+                            if page_uid in page_trigger_list_dict_ins_prior.keys():
+                                [trigger.addprevious(page_trigger) for page_trigger in
+                                 page_trigger_list_dict_ins_prior[page_uid]]
 
-                        # regular
-                        if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
-                            auto_generate_regular_trigger(xml_element=trigger, input_xml=xml_input_path,
-                                                          input_page_uid=page_uid)
-                        # other trigger after regular (deleteCurrentSplit, splitEpisode)
-                        if page_uid in page_trigger_list_dict_ins_after.keys():
-                            [trigger.addprevious(page_trigger) for page_trigger in
-                             page_trigger_list_dict_ins_after[page_uid]]
-                        break
+                            # regular
+                            if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
+                                auto_generate_regular_trigger(xml_element=trigger, input_xml=xml_input_path,
+                                                              input_page_uid=page_uid)
+                            # other trigger after regular (deleteCurrentSplit, splitEpisode)
+                            if page_uid in page_trigger_list_dict_ins_after.keys():
+                                [trigger.addprevious(page_trigger) for page_trigger in
+                                 page_trigger_list_dict_ins_after[page_uid]]
+                            break
 
-                    if remove_mode_switch:
-                        if automation_comment_switch(trigger) != AUTOMATION_COMMENT_END:
-                            trigger_to_delete = trigger
-                            continue
-                    if automation_comment_switch(trigger) == AUTOMATION_COMMENT_START:
-                        remove_mode_switch = True
-            else:
-                if any([page_uid.startswith(start_str) for start_str in calendar_modules_startswith_list]):
-                    print(f'Missing Automated Trigger Comments for Page:"{page_uid}"')
+                        if remove_mode_switch:
+                            if automation_comment_switch(trigger) != AUTOMATION_COMMENT_END:
+                                trigger_to_delete = trigger
+                                continue
+                        if automation_comment_switch(trigger) == AUTOMATION_COMMENT_START:
+                            remove_mode_switch = True
+                else:
+                    raise ValueError(f'Missing Automated Trigger Comments for Page:"{page_uid}"')
 
         # deal with transitions - delete old transitions
         if page.find(ZOFAR_TRANSITIONS_TAG) is not None:
