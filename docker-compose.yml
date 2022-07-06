@@ -1,0 +1,10 @@
+version: '2'
+services:
+  zcs:
+    build: .
+    volumes:
+      - ./io:/io
+    environment:
+    - XML_INPUT_PATH=/io/questionnaire.xml
+    - XML_OUTPUT_PATH=/io/questionnaire_out.xml
+    command: python -m zcs.data.xmlgen
