@@ -272,12 +272,25 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
             f"zofar.assign('json_array',zofar.str2jsonArrNoEmpty(zofar.defrac(zofar.list({','.join(frag_var_ls)}))))",
             "zofar.assign('episodeObj',zofar.getOrCreateJson(json_array,zofar.toInteger(episode_index.value)))",
             "zofar.assign('monthMap',zofar.map('1=ao1,2=ao2,3=ao3,4=ao4,5=ao5,6=ao6,7=ao7,8=ao8,9=ao9,10=ao10,11=ao11,12=ao12'))",
-            "zofar.assign('yearMap',zofar.map('2014=ao1,2015=ao2,2016=ao3,2017=ao4,2018=ao5,2019=ao6,2020=ao7,2021=ao8,2022=ao9,2023=ao10,2024=ao11'))",
+            "zofar.assign('yearMap',zofar.map('1970=ao1,1971=ao2,1972=ao3,1973=ao4,1974=ao5,1975=ao6,1976=ao7,1977=ao8,1978=ao9,1979=ao10,1980=ao11,1981=ao12,1982=ao13,1983=ao14,1984=ao15,1985=ao16,1986=ao17,1987=ao18,1988=ao19,1989=ao20,1990=ao21,1991=ao22,1992=ao23,1993=ao24,1994=ao25,1995=ao26,1996=ao27,1997=ao28,1998=ao29,1999=ao30,2000=ao31,2001=ao32,2002=ao33,2003=ao34,2004=ao35,2005=ao36,2006=ao37,2007=ao38,2008=ao39,2009=ao40,2010=ao41,2011=ao42,2012=ao43,2013=ao44,2014=ao45,2015=ao46,2016=ao47,2017=ao48,2018=ao49,2019=ao50,2020=ao51,2021=ao52,2022=ao53,2023=ao54,2024=ao55,2025=ao56,2026=ao57,2027=ao58,2028=ao59,2029=ao60,2030=ao61,2031=ao62,2032=ao63,2033=ao64,2034=ao65,2035=ao66,2036=ao67,2037=ao68,2038=ao69,2039=ao70,2040=ao71'))",
+            "zofar.assign('startDate',zofar.getJsonProperty(episodeObj, 'startDate'))",
+            "zofar.log('startDate: '.concat(startDate),sessionController.participant)",
+            "zofar.log('zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1): '.concat(zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1)),sessionController.participant)",
+            "zofar.log('zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)): '.concat(zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate))),sessionController.participant)",
+            "zofar.assign('endDate',zofar.getJsonProperty(episodeObj, 'endDate'))",
+            "zofar.log('endDate: '.concat(endDate),sessionController.participant)",
+            "zofar.log('endDate: '.concat(endDate),sessionController.participant)",
+            "zofar.log('zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1): '.concat(zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1)),sessionController.participant)",
+            "zofar.log('zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate)): '.concat(zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate))),sessionController.participant)",
+
             "zofar.setVariableValue(v_startmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1))",
             "zofar.setVariableValue(v_startyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)))",
             "zofar.setVariableValue(v_endmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1))",
             "zofar.setVariableValue(v_endyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate)))",
             "zofar.assign('toLoad',zofar.list())"]
+
+        vars_to_exclude = ['v_startmonth', 'v_startyear', 'v_endmonth', 'v_endyear']
+        var_list = [v for v in var_list if v.variable.name not in vars_to_exclude]
 
         for index, variable in enumerate(var_list):
             if variable.dropdown:
@@ -692,12 +705,13 @@ def add_backwardsblock_pages(input_html_root: etree._Element,
                                                      condition=f"navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}')")
 
             # ToDo: add comment to indicate that it is auto generated
+            new_page = create_zofar_page(page_uid='backwardsblock_' + page,
+                                         list_of_header_elements=[header_text_element],
+                                         list_of_triggers=[episodedispatcher_trigger_element, trigger_element])
 
-            input_html_root.append(
-                create_zofar_page(page_uid='backwardsblock_' + page,
-                                  list_of_header_elements=[header_text_element],
-                                  list_of_triggers=[episodedispatcher_trigger_element, trigger_element]))
-
+            new_page.insert(0, etree.Comment('Automatically generated page for blocking backward'
+                                             'jumps. Redirects to "episodeDispatcher".'))
+            input_html_root.append(new_page)
     return input_html_root
 
 
