@@ -265,7 +265,7 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
                                            attrib={"command": "zofar.nothing()", "onExit": "false"})
 
         tmp_comment = etree.Comment(
-            f"automatically generated triggers for loading variables: {[var.variable.name for var in var_list]}; additionally sets variables: 'v_startmonth', 'v_startyear', 'v_endmonth', 'v_endyear'")
+            f"automatically generated triggers for loading variables: {[var.variable.name for var in var_list]}; additionally sets variables: 'startmonth', 'startyear', 'endmonth', 'endyear'")
         new_action_element.insert(0, tmp_comment)
 
         script_item_str_list = [
@@ -274,22 +274,14 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
             "zofar.assign('monthMap',zofar.map('1=ao1,2=ao2,3=ao3,4=ao4,5=ao5,6=ao6,7=ao7,8=ao8,9=ao9,10=ao10,11=ao11,12=ao12'))",
             "zofar.assign('yearMap',zofar.map('1970=ao1,1971=ao2,1972=ao3,1973=ao4,1974=ao5,1975=ao6,1976=ao7,1977=ao8,1978=ao9,1979=ao10,1980=ao11,1981=ao12,1982=ao13,1983=ao14,1984=ao15,1985=ao16,1986=ao17,1987=ao18,1988=ao19,1989=ao20,1990=ao21,1991=ao22,1992=ao23,1993=ao24,1994=ao25,1995=ao26,1996=ao27,1997=ao28,1998=ao29,1999=ao30,2000=ao31,2001=ao32,2002=ao33,2003=ao34,2004=ao35,2005=ao36,2006=ao37,2007=ao38,2008=ao39,2009=ao40,2010=ao41,2011=ao42,2012=ao43,2013=ao44,2014=ao45,2015=ao46,2016=ao47,2017=ao48,2018=ao49,2019=ao50,2020=ao51,2021=ao52,2022=ao53,2023=ao54,2024=ao55,2025=ao56,2026=ao57,2027=ao58,2028=ao59,2029=ao60,2030=ao61,2031=ao62,2032=ao63,2033=ao64,2034=ao65,2035=ao66,2036=ao67,2037=ao68,2038=ao69,2039=ao70,2040=ao71'))",
             "zofar.assign('startDate',zofar.getJsonProperty(episodeObj, 'startDate'))",
-            "zofar.log('startDate: '.concat(startDate),sessionController.participant)",
-            "zofar.log('zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1): '.concat(zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1)),sessionController.participant)",
-            "zofar.log('zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)): '.concat(zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate))),sessionController.participant)",
             "zofar.assign('endDate',zofar.getJsonProperty(episodeObj, 'endDate'))",
-            "zofar.log('endDate: '.concat(endDate),sessionController.participant)",
-            "zofar.log('endDate: '.concat(endDate),sessionController.participant)",
-            "zofar.log('zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1): '.concat(zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1)),sessionController.participant)",
-            "zofar.log('zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate)): '.concat(zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate))),sessionController.participant)",
-
-            "zofar.setVariableValue(v_startmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1))",
-            "zofar.setVariableValue(v_startyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)))",
-            "zofar.setVariableValue(v_endmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1))",
-            "zofar.setVariableValue(v_endyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate)))",
+            "zofar.setVariableValue(startmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(startDate)+1))",
+            "zofar.setVariableValue(startyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(startDate)))",
+            "zofar.setVariableValue(endmonth,zofar.getFromMap(monthMap,zofar.getMonthFromStamp(endDate)+1))",
+            "zofar.setVariableValue(endyear,zofar.getFromMap(yearMap,zofar.getYearFromStamp(endDate)))",
             "zofar.assign('toLoad',zofar.list())"]
 
-        vars_to_exclude = ['v_startmonth', 'v_startyear', 'v_endmonth', 'v_endyear']
+        vars_to_exclude = ['startmonth', 'startyear', 'endmonth', 'endyear']
         var_list = [v for v in var_list if v.variable.name not in vars_to_exclude]
 
         for index, variable in enumerate(var_list):
@@ -744,10 +736,10 @@ def add_debug_info_to_page(page: etree._Element, split_data: dict) -> etree._Ele
                             f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
                             f"#{{layout.UNDERLINED_START}}Zeitraum der aktuellen Episode: " \
                             f"#{{layout.UNDERLINED_END}}#{{layout.BREAK}}" \
-                            f"v_startmonth: #{{zofar.labelOf(v_startmonth)}}#{{layout.BREAK}}" \
-                            f"v_startyear: #{{zofar.labelOf(v_startyear)}}#{{layout.BREAK}}" \
-                            f"v_endmonth: #{{zofar.labelOf(v_endmonth)}}#{{layout.BREAK}}" \
-                            f"v_endyear: #{{zofar.labelOf(v_endyear)}}#{{layout.BREAK}}" \
+                            f"startmonth: #{{zofar.labelOf(startmonth)}}#{{layout.BREAK}}" \
+                            f"startyear: #{{zofar.labelOf(startyear)}}#{{layout.BREAK}}" \
+                            f"endmonth: #{{zofar.labelOf(endmonth)}}#{{layout.BREAK}}" \
+                            f"endyear: #{{zofar.labelOf(endyear)}}#{{layout.BREAK}}" \
                             f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
                             f"complete: #{{complete.value}} #{{layout.BREAK}}" \
                             f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
