@@ -8,8 +8,7 @@ import json
 import pprint
 import codecs
 
-
-def pretty_print_json_config(input_str: str) -> str:
+def prepare_json_str(input_str: str, text_to_replace: str) -> str:
     input_str = input_str.strip()
     input_str = re.sub('\s', '', input_str)
     input_str = re.sub('\n', '', input_str)
@@ -35,6 +34,10 @@ def pretty_print_json_config(input_str: str) -> str:
         tmp_str = tmp_str.replace(text_to_replace, '"XXXX"}}"')
     tmp_str = tmp_str[1:-1]
     tmp_str = tmp_str.replace("'", '"')
+    return tmp_str
+
+def pretty_print_json_config(input_str: str) -> str:
+    tmp_str = prepare_json_str(input_str)
     input_dict = json.loads(tmp_str)
     output_str = json.dumps(input_dict, indent=4, sort_keys=False)
     output_str = output_str.replace('"', "'")

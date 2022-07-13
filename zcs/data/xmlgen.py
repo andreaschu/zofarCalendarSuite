@@ -1,10 +1,12 @@
+import math
+
 from art import text2art
 import json
 import pprint
 import re
 import os.path
 from pathlib import Path
-from typing import Union, List, Optional, Set, Dict
+from typing import Union, List, Optional, Set, Dict, Tuple
 from lxml import etree
 import html
 from collections import defaultdict
@@ -72,7 +74,7 @@ def create_ascii_art_comments(input_str: str, font: str = 'standard') -> List[et
 
 def is_ascii_art_comment(input_element: etree.Element) -> bool:
     if is_comment_element(input_element):
-        if input_element.text.startswith('### '):
+        if input_element.text.startswith('###'):
             return True
     return False
 
@@ -640,7 +642,7 @@ def remove_backwardsblock_pages(input_html_root: etree._Element) -> etree._Eleme
     for page in input_html_root.iterchildren(ZOFAR_PAGE_TAG):
         page_uid = get_element_attrib(page, 'uid')
         if page_uid is not None:
-            if page_uid.startswith('backwardsblock_'):
+            if page_uid.startswith('backwardsBlock_'):
                 page.getparent().remove(page)
     return input_html_root
 
@@ -655,7 +657,7 @@ def remove_and_add_splitlanding_pages(html_root: etree._Element,
                                       split_data_dict: dict,
                                       copy_old_headers_bodies: bool = True) -> etree._Element:
     for module in split_data_dict[MODULES_DATA].values():
-        split_landing_uid = 'splitlanding_' + module[PAGE_NAME_STARTSWITH]
+        split_landing_uid = 'splitLanding_' + module[PAGE_NAME_STARTSWITH]
         if copy_old_headers_bodies:
             old_header = None
             old_body = None
@@ -684,9 +686,9 @@ def create_redirect_action(target: str, on_exit: str, direction: str = None, con
 def add_backwardsblock_pages(input_html_root: etree._Element,
                              input_pages_dict: Dict[str, Union[List[str], Set[str]]]) -> etree._Element:
     for input_pages_startswith, input_pages_iterable in input_pages_dict.items():
-        episodedispatcher_trigger_element = create_redirect_action(target='episodedispatcher',
+        episodedispatcher_trigger_element = create_redirect_action(target='episodeDispatcher',
                                                                    on_exit='false',
-                                                                   condition=f"!navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}')")
+                                                                   condition=f"!navigatorBean.getBackwardViewID().startsWith('/splitLanding_{input_pages_startswith}')")
         for page in input_pages_iterable:
             header_text_element = create_text_element('t1', 'Diese Page sollte eigentlich nicht angezeigt, sondern '
                                                             'direkt übersprungen werden.#{layout.BREAK} Das hat '
@@ -694,10 +696,10 @@ def add_backwardsblock_pages(input_html_root: etree._Element,
 
             trigger_element = create_redirect_action(target=page,
                                                      on_exit="false",
-                                                     condition=f"navigatorBean.getBackwardViewID().startsWith('/splitlanding_{input_pages_startswith}')")
+                                                     condition=f"navigatorBean.getBackwardViewID().startsWith('/splitLanding_{input_pages_startswith}')")
 
             # ToDo: add comment to indicate that it is auto generated
-            new_page = create_zofar_page(page_uid='backwardsblock_' + page,
+            new_page = create_zofar_page(page_uid='backwardsBlock_' + page,
                                          list_of_header_elements=[header_text_element],
                                          list_of_triggers=[episodedispatcher_trigger_element, trigger_element])
 
@@ -977,8 +979,8 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         iter_condition = has_current_split_list_zofar_function(module_split_type_order, frag_var_list)
 
                     # deal with transitions - implement transition condition
-                    landing_page_name = f'splitlanding_{module_page_name_startswith}01'
-                    page_transitions_list_dict[end_page].append(create_transition('episodedispatcher',
+                    landing_page_name = f'splitLanding_{module_page_name_startswith}01'
+                    page_transitions_list_dict[end_page].append(create_transition('episodeDispatcher',
                                                                                   'zofar.asNumber(episode_index) lt 0'))
                     page_transitions_list_dict[end_page].append(create_transition(landing_page_name,
                                                                                   iter_condition))
@@ -993,7 +995,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     page_trigger_list_dict_ins_after[module_end_page].append(split_episode_trigger)
 
                 # deal with transitions: to episodedispatcher
-                page_transitions_list_dict[module_end_page].append(create_transition('episodedispatcher', 'true'))
+                page_transitions_list_dict[module_end_page].append(create_transition('episodeDispatcher', 'true'))
 
     # delete old split data dictionary
     for element in template_root.iter():
@@ -1135,7 +1137,45 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     output_xml_string = etree.tostring(template_root, pretty_print=True, method='xml').decode('utf-8')
 
-    output_xml_string = '\n'.join([re.sub(r'^ +', _duplicate_str, line) for line in output_xml_string.split('\n')])
+    def _fix_line_beginnings(index: int, input_str: str, fix_indent: Optional[int], last_closing: bool) -> Tuple[
+        str, Optional[int], bool]:
+        tmp_str = re.sub(r'^ +', _duplicate_str, input_str)
+        length_beginning_space = 0
+        for i, char in enumerate(tmp_str):
+            if char != ' ':
+                if char == '<':
+                    if tmp_str[i + 1] == '/':
+                        if fix_indent is not None:
+                            if fix_indent >= 1:
+                                if last_closing:
+                                    return re.sub(r'^ +', '\t' * (fix_indent - 1), input_str), fix_indent - 1, True
+                                else:
+                                    return re.sub(r'^ +', '\t' * fix_indent, input_str), fix_indent, True
+
+                    length_beginning_space = i
+                    break
+                else:
+                    if fix_indent is not None and fix_indent >= 0:
+                        return re.sub(r'^ +', '\t' * (fix_indent+1), input_str), fix_indent, False
+                    return input_str, fix_indent, False
+        if length_beginning_space > 0:
+            input_str_stripped = tmp_str[length_beginning_space:]
+            tab_count = math.ceil(length_beginning_space / 4)
+            tmp_str = '\t' * tab_count + input_str_stripped
+
+            return tmp_str, tab_count, False
+        return tmp_str, fix_indent, False
+
+    results_list = []
+    last_indent = None
+    last_closing = False
+    new_line = None
+    for index, line in enumerate(output_xml_string.split('\n')):
+        new_line, last_indent, last_closing = _fix_line_beginnings(index, line, last_indent, last_closing)
+        results_list.append(new_line)
+
+    output_xml_string = '\n'.join(results_list)
+    # output_xml_string = '\n'.join([_fix_line_beginnings(index, line) for index, line in enumerate(output_xml_string.split('\n'))])
 
     # umlaute etc. get automatically replaced by their html escape codes when being written by the parser
     # replace them back (remove html escapes and replace by non-ascii characters)
@@ -1150,7 +1190,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     # write XML to file
     output_xml_file = Path(xml_output_path)
-    output_xml_file.write_text(output_xml_string, 'utf-8')
+    output_xml_file.write_text(data=output_xml_string, encoding='utf-8', newline='\n')
 
 
 if __name__ == '__main__':
