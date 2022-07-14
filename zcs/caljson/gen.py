@@ -469,8 +469,3 @@ class Question_QML_JSON_Trigger_generator:
         return tmp_json_function_code_save
 
 
-def main():
-    pass
-
-if __name__ == '__main__':
-    main()

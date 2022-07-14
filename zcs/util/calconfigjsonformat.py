@@ -1,12 +1,9 @@
 import re
-import sys
-from tkinter import Tk, scrolledtext, Frame
+from tkinter import scrolledtext
 import tkinter
-from util.log import Loggable
+from zcs.util.log import Loggable
 from zcs.util.util import use_clipboard
 import json
-import pprint
-import codecs
 
 
 def pretty_print_json_config(input_str: str) -> str:

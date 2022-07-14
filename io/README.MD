@@ -1,0 +1,1 @@
+Put data into this folder to make it accessible from within the Docker container.

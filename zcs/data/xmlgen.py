@@ -1,4 +1,5 @@
 import math
+import sys
 
 from art import text2art
 import json
@@ -743,7 +744,7 @@ def add_debug_info_to_page(page: etree._Element, split_data: dict) -> etree._Ele
                             f"endmonth: #{{zofar.labelOf(endmonth)}}#{{layout.BREAK}}" \
                             f"endyear: #{{zofar.labelOf(endyear)}}#{{layout.BREAK}}" \
                             f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
-                            f"complete: #{{complete.value}} #{{layout.BREAK}}" \
+                            f"v_complete: #{{v_complete.value}} #{{layout.BREAK}}" \
                             f"#{{layout.BREAK}}#{{layout.BREAK}}#{{layout.BREAK}}" \
                             f"Episode Counter (Ausbildung: v_episodeCount): #{{v_episodeCount}}" \
                             f"#{{layout.BREAK}}" \
@@ -1005,6 +1006,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                 if 'SPLIT_DATA' in split_data_dict.keys():
                     element.addprevious(etree.Comment(json.dumps(split_data_dict, indent='  ')))
                     element.getparent().remove(element)
+                    break
             except json.JSONDecodeError as e:
                 print(e)
     processed_pages_list = []
@@ -1156,7 +1158,7 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                     break
                 else:
                     if fix_indent is not None and fix_indent >= 0:
-                        return re.sub(r'^ +', '\t' * (fix_indent+1), input_str), fix_indent, False
+                        return re.sub(r'^ +', '\t' * (fix_indent + 1), input_str), fix_indent, False
                     return input_str, fix_indent, False
         if length_beginning_space > 0:
             input_str_stripped = tmp_str[length_beginning_space:]
@@ -1170,7 +1172,13 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     last_indent = None
     last_closing = False
     new_line = None
+    name_tag_reached = False
     for index, line in enumerate(output_xml_string.split('\n')):
+        if str(line).strip().startswith('<zofar:name'):
+            name_tag_reached = True
+        if not name_tag_reached:
+            results_list.append(line)
+            continue
         new_line, last_indent, last_closing = _fix_line_beginnings(index, line, last_indent, last_closing)
         results_list.append(new_line)
 
@@ -1190,7 +1198,11 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
     # write XML to file
     output_xml_file = Path(xml_output_path)
-    output_xml_file.write_text(data=output_xml_string, encoding='utf-8', newline='\n')
+
+    if sys.version_info.major == 3 and sys.version_info.minor >= 10:
+        output_xml_file.write_text(data=output_xml_string, encoding='utf-8', newline='\n')
+    else:
+        output_xml_file.write_text(data=output_xml_string, encoding='utf-8')
 
 
 if __name__ == '__main__':
