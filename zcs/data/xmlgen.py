@@ -91,6 +91,23 @@ def create_script_item(val: str) -> etree.Element:
                          attrib={"value": val})
 
 
+def create_var_trigger(var_name: str,
+                       value: str,
+                       condition: Optional[str] = None,
+                       on_exit: Optional[str] = None,
+                       direction: Optional[str] = None) -> etree.Element:
+    attrib_dict = {"variable": var_name, "value": value}
+    if condition is not None:
+        attrib_dict['condition'] = condition
+    if on_exit is not None:
+        attrib_dict['onExit'] = on_exit
+    if direction is not None:
+        attrib_dict['direction'] = direction
+
+    return etree.Element('{http://www.his.de/zofar/xml/questionnaire}variable',
+                         attrib=attrib_dict)
+
+
 def create_transition(target_str: str, condition_str: Optional[str] = None,
                       comment_str: str = 'AUTOMATICALLY GENERATED') -> etree.Element:
     tmp_element = etree.Element(ZOFAR_TRANSITION_TAG, attrib={"target": target_str})
@@ -268,7 +285,9 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
                                            attrib={"command": "zofar.nothing()", "onExit": "false"})
 
         tmp_comment = etree.Comment(
-            f"automatically generated triggers for loading variables: {[var.variable.name for var in var_list]}; additionally sets variables: 'startmonth', 'startyear', 'endmonth', 'endyear'")
+            f"automatically generated triggers for loading variables: {[var.variable.name for var in var_list]}; "
+            f"additionally sets variables: 'startmonth', 'startyear', 'endmonth', 'endyear', "
+            f"'monthpickerepisodestart', 'monthpickerepisodeend'")
         new_action_element.insert(0, tmp_comment)
 
         script_item_str_list = [
@@ -352,8 +371,43 @@ def auto_generate_regular_trigger(xml_element: etree.Element,
 
     frag_var_list = generate_frag_var_list_from_split_data(q.split_data[DATA])
 
+    def _create_monthpicker_range_variables(fragment_var_list: List[str]) -> List[Union[etree._Element, etree._Comment]]:
+        var_trigger_list = []
+        var_trigger_list.append(etree.Comment(' start of monthpicker range '))
+        var_trig_1 = create_var_trigger(var_name="monthpickerepisodestart",
+                                        value="zofar.timestamp2monthpicker(zofar.getJsonProperty(zofar.getOrCreateJson(zofar.str2jsonArr(zofar.defrac("
+                                              f"zofar.list({','.join(fragment_var_list)}))), episode_index.value), 'startDate'))",
+                                        on_exit="false")
+        var_trigger_list.append(var_trig_1)
+
+        var_trigger_list.append(
+            etree.Comment(' fallback if "startDate" of current episode is a missing value: user calMinRange '))
+        var_trig_2 = create_var_trigger(var_name="monthpickerepisodestart",
+                                        value="zofar.yearStr2monthpickerYearStart(episode_range_start)",
+                                        condition="zofar.isMissingDateValue(zofar.monthpicker2timestamp(monthpickerepisodestart.value))",
+                                        on_exit="false")
+        var_trigger_list.append(var_trig_2)
+
+        var_trigger_list.append(etree.Comment(' end of monthpicker range '))
+        var_trig_3 = create_var_trigger(var_name="monthpickerepisodeend",
+                                        value="zofar.timestamp2monthpicker(zofar.getJsonProperty(zofar.getOrCreateJson(zofar.str2jsonArr(zofar.defrac("
+                                              f"zofar.list({','.join(fragment_var_list)}))), episode_index.value), 'endDate'))",
+                                        on_exit="false")
+        var_trigger_list.append(var_trig_3)
+
+        var_trigger_list.append(
+            etree.Comment(' fallback if "endDate" of current episode is a missing value: use calMaxRange '))
+        var_trig_4 = create_var_trigger(var_name="monthpickerepisodeend",
+                                        value="zofar.yearStr2monthpickerYearEnd(episode_range_end)",
+                                        condition="zofar.isMissingDateValue(zofar.monthpicker2timestamp(monthpickerepisodeend.value))",
+                                        on_exit="false")
+        var_trigger_list.append(var_trig_4)
+
+        return var_trigger_list
+
     xml_element.addprevious(_create_reset_trigger_element(list(relevant_page.var_refs)))
     xml_element.addprevious(_create_load_trigger_element(list(relevant_page.var_refs), frag_var_list))
+    [xml_element.addprevious(element) for element in _create_monthpicker_range_variables(frag_var_list)]
     xml_element.addprevious(_create_save_trigger_element(list(relevant_page.var_refs), frag_var_list))
 
 
@@ -808,6 +862,27 @@ def list_all_module_pages(q: Questionnaire) -> List[str]:
     return return_list
 
 
+def get_soft_force_condition(page_uid: str, html_root: etree._Element) -> str:
+    for page in html_root.iterchildren(ZOFAR_PAGE_TAG):
+        if get_element_attrib(page, 'uid') != page_uid:
+            continue
+        # page has been found
+        conditions_list = []
+        for transition in page.find(ZOFAR_TRANSITIONS_TAG).iterchildren():
+            flag_auto_generated = False
+            for comment_candidate in transition.iter():
+                if is_comment_element(comment_candidate):
+                    if comment_candidate.text == "AUTOMATICALLY GENERATED":
+                        flag_auto_generated = True
+            if flag_auto_generated:
+                break
+            if not flag_auto_generated:
+                if get_element_attrib(transition, 'target') == page_uid:
+                    conditions_list.append(get_element_attrib(transition, 'condition'))
+        return '(' + ' or '.join(conditions_list) + ')'
+    return ''
+
+
 def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
     etree.register_namespace('zofar', 'http://www.his.de/zofar/xml/questionnaire')
     etree.register_namespace('display', 'http://www.dzhw.eu/zofar/xml/display')
@@ -921,6 +996,8 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                              module_data[SPLIT_TYPE_DICT][split_type][END_PAGES].keys()]
 
                 for end_page in split_type_end_pages_list:
+                    soft_force_condition = get_soft_force_condition(end_page, template_root)
+
                     conditions_list = module_data[SPLIT_TYPE_DICT][split_type][END_PAGES][end_page]
                     # deal with triggers & transitions
                     #
@@ -929,15 +1006,20 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         remove_from_current_split_type_trigger = \
                             delete_from_current_split_trigger_element(split_type,
                                                                       frag_var_list)
-                        tmp_conditions_list = []
+                        or_conditions_list = []
                         for condition_entry in conditions_list:
+                            and_conditions_list = []
                             for var_name, var_val in condition_entry.items():
-                                if q.variables[var_name].type == 'enum':
-                                    tmp_conditions_list.append(f"({var_name}.valueId == '{var_val}')")
+                                if var_val == 'MISSING':
+                                    and_conditions_list.append(f"zofar.isMissing({var_name})")
                                 else:
-                                    tmp_conditions_list.append(f"({var_name}.value == '{var_val}')")
+                                    if q.variables[var_name].type == 'enum':
+                                        and_conditions_list.append(f"({var_name}.valueId == '{var_val}')")
+                                    else:
+                                        and_conditions_list.append(f"({var_name}.value == '{var_val}')")
+                            or_conditions_list.append('(' + ' and '.join(and_conditions_list) + ')')
 
-                        page_candidate_condition = ' and '.join(tmp_conditions_list)
+                        page_candidate_condition = '(' + ' or '.join(or_conditions_list) + ')'
 
                         # trigger for deleteCurrentSplit()
                         remove_from_current_split_type_trigger.attrib["condition"] = page_candidate_condition
@@ -949,6 +1031,10 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                                           ' and (' + \
                                           do_split_on_end_page_candidate_function(types_right_of_split_type,
                                                                                   frag_var_list) + ')'
+
+                        if soft_force_condition != '':
+                            split_condition = '( !(' + soft_force_condition + ') and (' + split_condition + '))'
+
                         split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
                                                                                             frag_var_list,
                                                                                             split_condition)
@@ -971,6 +1057,10 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
                         #   "-> and has no other following split types in currentSplit"
                         split_condition = do_split_on_end_page_candidate_function(types_right_of_split_type,
                                                                                   frag_var_list)
+
+                        if soft_force_condition != '':
+                            split_condition = '( !(' + soft_force_condition + ') and (' + split_condition + '))'
+
                         split_episode_trigger = auto_generate_split_episode_trigger_element(module_split_type_dict,
                                                                                             frag_var_list,
                                                                                             split_condition)
@@ -1206,4 +1296,15 @@ def main(xml_input_path: Union[Path, str], xml_output_path: Union[Path, str]):
 
 
 if __name__ == '__main__':
+    print(f'{XML_INPUT_PATH=}')
+    print(f'{XML_OUTPUT_PATH=}')
     main(XML_INPUT_PATH, XML_OUTPUT_PATH)
+
+    raise NotImplementedError("""            <!-- start of monthpicker range -->
+            <zofar:variable variable="monthpickerepisodestart" value="zofar.timestamp2monthpicker(zofar.getJsonProperty(zofar.getOrCreateJson(zofar.str2jsonArr(zofar.defrac(zofar.list(episodes_fragment_1,episodes_fragment_2,episodes_fragment_3,episodes_fragment_4))), episode_index.value), 'startDate'))" onExit="false"/>
+            <!-- fallback if "startDate" of current episode is a missing value: user calMinRange -->
+            <zofar:variable variable="monthpickerepisodestart" value="zofar.yearStr2monthpickerYearStart(episode_range_start)" condition="zofar.isMissingDateValue(zofar.monthpicker2timestamp(monthpickerepisodestart.value))" onExit="false"/>
+            <!-- end of monthpicker range -->
+            <zofar:variable variable="monthpickerepisodeend" value="zofar.timestamp2monthpicker(zofar.getJsonProperty(zofar.getOrCreateJson(zofar.str2jsonArr(zofar.defrac(zofar.list(episodes_fragment_1,episodes_fragment_2,episodes_fragment_3,episodes_fragment_4))), episode_index.value), 'endDate'))" onExit="false"/>
+            <!-- fallback if "endDate" of current episode is a missing value: use calMaxRange -->
+            <zofar:variable variable="monthpickerepisodeend" value="zofar.yearStr2monthpickerYearEnd(episode_range_end)" condition="zofar.isMissingDateValue(zofar.monthpicker2timestamp(monthpickerepisodeend.value))" onExit="false"/>""")
